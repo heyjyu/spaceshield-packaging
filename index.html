@@ -23,7 +23,7 @@ button{font-family:inherit;cursor:pointer}
 
 /* ── 헤더 ── */
 header{background:var(--ink);color:#fff;padding:0 24px}
-.hd-top{display:flex;align-items:center;gap:16px;height:60px;flex-wrap:wrap}
+.hd-top{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 0;flex-wrap:wrap}
 .brand{font-family:'Archivo',sans-serif;font-variation-settings:'wdth' 118;font-weight:800;font-size:19px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .brand small{display:block;font-family:'Noto Sans KR';font-weight:400;font-size:11px;letter-spacing:.28em;color:#b9b9b3;margin-top:-2px}
 .hd-sp{flex:1}
@@ -188,6 +188,16 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   .wrap{flex-direction:column}
   aside{width:100%;position:static}
   .kanban{grid-template-columns:repeat(5,260px)}
+}
+@media(max-width:600px){
+  header{padding:0 14px}
+  .hd-top{gap:8px}
+  .brand{font-size:16px}
+  .brand small{letter-spacing:.14em}
+  .auth-state{order:5;width:100%;margin-top:-2px}
+  .hd-btn{padding:6px 10px;font-size:12px}
+  .hd-sp{display:none}
+  .tab{padding:9px 12px 11px;font-size:13px}
 }
 </style>
 </head>

@@ -136,6 +136,19 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .sheet-btns{display:flex;flex-direction:column;gap:5px}
 .sheet-btns button{border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:5px 10px;font-size:11.5px;white-space:nowrap}
 .sheet-btns button.gold{background:var(--tag);border-color:var(--tag);font-weight:700}
+.asset-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.asset-tile{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:13px 6px 11px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;transition:box-shadow .12s,border-color .12s,background .12s}
+.asset-tile:hover{background:#fff;border-color:var(--line-strong);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.asset-tile .ic{font-size:21px;line-height:1}
+.asset-tile .lb{font-weight:700;font-size:13.5px;color:var(--ink)}
+.asset-tile .cap{font-size:10.5px;color:var(--muted)}
+.asset-tile.set{background:var(--tag-soft);border-color:#ecd9a0}
+.asset-tile.empty{opacity:.55}
+.asset-tile.empty:hover{opacity:1}
+.asset-edit{text-align:center;margin-top:7px}
+.asset-edit button{background:none;border:none;color:var(--muted);font-size:11.5px;text-decoration:underline;cursor:pointer;font-family:inherit}
+.asset-edit button:hover{color:var(--ink)}
+.asset-edit .sep{color:var(--line-strong);margin:0 6px}
 .ord-mini{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12.5px}
 .ord-mini h4{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px}
 .ord-mini .row{display:flex;justify-content:space-between;padding:2px 0;color:#555}
@@ -288,6 +301,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
       <div class="f"><label>국내 재고</label><input id="i_sKr" type="number" value="0"></div>
     </div>
     <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
+    <div class="f"><label>NAS 전체 서버 경로</label><input id="i_nas" placeholder="\\NAS\SpaceShield\G STK\먼지제거스티커\"></div>
+    <div class="f"><label>FLOW 기획서 URL</label><input id="i_flow" placeholder="https://..."></div>
     <div class="f"><label>메모</label><textarea id="i_memo" placeholder="거래처명, 담당자 위챗, 특이사항 등"></textarea></div>
     <div class="m-btns">
       <button onclick="closeModal('itemOverlay')">취소</button>
@@ -354,8 +369,8 @@ let ui={q:'', type:'all', sort:'orders'};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', photo:i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', photo:i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -533,13 +548,23 @@ function renderDetail(id){
         <span>리드타임 <b>${i.lead}</b>일</span>
         ${i.memo?`<span style="grid-column:1/3">메모: ${i.memo}</span>`:''}
       </div>
-      <div class="sheet-box">
-        ${sheetThumb}
-        <div class="info"><b>작업지시서</b>재주문 시 거래처에 이미지로 전달</div>
-        <div class="sheet-btns">
-          <button class="gold" onclick="copySheetImage(${i.id})">지시서 이미지 복사</button>
-          <button onclick="pickPhoto(${i.id},'sheet')">${i.sheet?'지시서 변경':'지시서 등록'}</button>
-        </div>
+      <div class="asset-row">
+        <button class="asset-tile ${i.sheet?'set':'empty'}" onclick="${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">
+          <div class="ic">📄</div><div class="lb">작업지시서</div>
+          <div class="cap">${i.sheet?'이미지 복사':'등록 필요'}</div>
+        </button>
+        <button class="asset-tile ${i.nasPath?'set':'empty'}" onclick="copyNasPath(${i.id})">
+          <div class="ic">📁</div><div class="lb">NAS</div>
+          <div class="cap">${i.nasPath?'서버 경로 복사':'미등록'}</div>
+        </button>
+        <button class="asset-tile ${i.flowUrl?'set':'empty'}" onclick="copyFlowUrl(${i.id})">
+          <div class="ic">🟣</div><div class="lb">FLOW</div>
+          <div class="cap">${i.flowUrl?'기획서 URL 복사':'미등록'}</div>
+        </button>
+      </div>
+      <div class="asset-edit">
+        <button onclick="pickPhoto(${i.id},'sheet')">${i.sheet?'지시서 이미지 변경':'지시서 이미지 등록'}</button>
+        ${i.sheet?`<span class="sep">·</span><button onclick="zoomSheet(${i.id})">지시서 크게 보기</button>`:''}
       </div>
       ${ordHtml}
       <div class="dt-actions">
@@ -736,6 +761,16 @@ function requestShipment(itemId){
   const msg=`您好！请把仓库里保管的我们的包装发货：\n\n品名：${i.nameCn||i.nameEn}\n规格：${i.spec}\n数量：${fmt(Number(q))}个\n\n请发到我们指定的货代那边，发货后麻烦拍个照发我，谢谢！🙏`;
   copyText(msg,'출고요청 메시지 복사 완료 — 발송 확인 후 칸반에서 단계를 이동하세요');
 }
+function copyNasPath(itemId){
+  const i=state.items.find(x=>x.id===itemId); if(!i)return;
+  if(!i.nasPath){toast('NAS 경로가 미등록입니다 — [품목 정보 수정]에서 입력하세요');return;}
+  copyText(i.nasPath,'NAS 서버 경로가 복사되었습니다 — 탐색기 주소창에 붙여넣으세요');
+}
+function copyFlowUrl(itemId){
+  const i=state.items.find(x=>x.id===itemId); if(!i)return;
+  if(!i.flowUrl){toast('FLOW 기획서 URL이 미등록입니다 — [품목 정보 수정]에서 입력하세요');return;}
+  copyText(i.flowUrl,'FLOW 기획서 URL이 복사되었습니다');
+}
 
 /* ───────── 품목 CRUD ───────── */
 function openItemModal(id){
@@ -750,6 +785,7 @@ function openItemModal(id){
   $('i_moq').value=i?i.moq:''; $('i_lead').value=i?i.lead:'';
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
   $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
+  $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:'';
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
 }
@@ -761,6 +797,7 @@ async function saveItem(){
     spec:$('i_spec').value.trim(), price:Number($('i_price').value)||0,
     moq:Number($('i_moq').value)||0, lead:Number($('i_lead').value)||14,
     safety:Number($('i_safety').value)||0, memo:$('i_memo').value.trim(),
+    nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(),
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
   if(!d.code||!d.nameKo){toast('관리코드와 한국명은 필수입니다');return;}

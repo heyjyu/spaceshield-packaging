@@ -24,6 +24,8 @@ create table if not exists public.pkg_items (
   stock_forwarder int    default 0,           -- 포워딩 재고
   stock_korea     int    default 0,           -- 국내 재고
   memo            text default '',
+  nas_path        text default '',            -- NAS 전체 서버 경로 (텍스트 복사용)
+  flow_url        text default '',            -- FLOW 기획서 링크 URL
   photo           text default '',            -- 실물 사진 URL (Storage)
   sheet           text default '',            -- 작업지시서 이미지 URL (Storage)
   created_at      timestamptz default now(),

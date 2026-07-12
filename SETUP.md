@@ -29,6 +29,11 @@ secret / service_role 키는 코드 어디에도 없습니다.
 `SB_KEY`는 **publishable(anon)** 키입니다 — 공개용으로 설계돼 코드에 노출돼도 안전합니다.
 쓰기는 로그인(JWT)한 사용자만 RLS로 허용됩니다.
 
+## 이미 테이블을 만든 뒤 컬럼이 추가됐다면? (마이그레이션)
+`nas_path` / `flow_url`(NAS 경로·FLOW 기획서 URL) 같은 컬럼이 나중에 추가됩니다.
+기존 테이블에는 **`supabase_migration_nas_flow.sql`** 을 SQL Editor 에 붙여넣고 RUN 하면 됩니다(데이터 유지).
+> 이 마이그레이션을 안 돌리면 품목 저장 시 "column not found" 오류가 납니다.
+
 ## 예시 데이터를 빼고 시작하려면?
 `supabase_schema.sql`에서 `-- 5) 예시 데이터` 아래 `insert` 블록만 지우고 RUN 하세요.
 

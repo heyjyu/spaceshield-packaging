@@ -394,6 +394,20 @@ function showConnError(msg){
   $('noteBar').style.background='var(--warn-soft)';$('noteBar').style.borderColor='#e6b8b0';$('noteBar').style.color='var(--warn)';
 }
 
+/* 실시간 동기화 — 다른 사용자의 변경을 자동 반영 (모두 같은 화면) */
+let reloadTimer=null, pendingReload=false;
+function scheduleReload(){
+  if(stockEditing){ pendingReload=true; return; }   // 인라인 수정 중이면 끝난 뒤 반영
+  clearTimeout(reloadTimer);
+  reloadTimer=setTimeout(()=>{ pendingReload=false; loadAll(); }, 400);
+}
+function initRealtime(){
+  sb.channel('pkg-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pkg_items'},scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pkg_orders'},scheduleReload)
+    .subscribe();
+}
+
 /* 저장 헬퍼 */
 async function dbInsertItem(i){const {data,error}=await sb.from('pkg_items').insert(itemToRow(i)).select('id').single();if(error)throw error;return data.id;}
 async function dbUpdateItem(i){const {error}=await sb.from('pkg_items').update(itemToRow(i)).eq('id',i.id);if(error)throw error;}
@@ -405,7 +419,7 @@ async function dbDeleteOrder(id){const {error}=await sb.from('pkg_orders').delet
 /* ───────── 인증 ───────── */
 async function initAuth(){
   const {data}=await sb.auth.getSession(); session=data.session;
-  sb.auth.onAuthStateChange((_e,s)=>{session=s;renderAuthBar();});
+  sb.auth.onAuthStateChange((_e,s)=>{session=s;renderAuthBar();render();});
   renderAuthBar();
 }
 function isAuthed(){return !!session;}
@@ -789,11 +803,12 @@ function beginStockEdit(id,field,el){
   el.innerHTML=`<input class="stk-edit" type="number" min="0" value="${cur}">`;
   const inp=el.firstChild; inp.focus(); inp.select();
   let done=false;
+  const flush=()=>{ if(pendingReload){pendingReload=false;scheduleReload();} };
   const finish=async(save)=>{
     if(done)return; done=true; stockEditing=false;
-    if(!save){renderDetail(id);return;}
+    if(!save){renderDetail(id);flush();return;}
     const v=Math.max(0,Math.round(Number(inp.value)||0));
-    if(v===cur){renderDetail(id);return;}
+    if(v===cur){renderDetail(id);flush();return;}
     it.stock[field]=v; render();
     try{ await dbUpdateItemStock(it); toast(`${it.code} ${STK_LABEL[field]} 재고 ${fmt(v)}개로 수정`); }
     catch(e){ toast('저장 실패: '+e.message); loadAll(); }
@@ -801,7 +816,7 @@ function beginStockEdit(id,field,el){
   inp.onblur=()=>finish(true);
   inp.onkeydown=(e)=>{
     if(e.key==='Enter'){e.preventDefault();inp.blur();}
-    else if(e.key==='Escape'){done=true;stockEditing=false;renderDetail(id);}
+    else if(e.key==='Escape'){done=true;stockEditing=false;renderDetail(id);flush();}
   };
 }
 
@@ -905,6 +920,7 @@ function exportData(){
 render();
 initAuth();
 loadAll();
+initRealtime();
 </script>
 </body>
 </html>

@@ -85,6 +85,17 @@ create policy "pkg img auth write" on storage.objects
   for all to authenticated
   using (bucket_id = 'pkg-images') with check (bucket_id = 'pkg-images');
 
+-- 4-1) 실시간 동기화 publication (다른 사용자의 변경 자동 반영) --------
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pkg_items') then
+    alter publication supabase_realtime add table public.pkg_items;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pkg_orders') then
+    alter publication supabase_realtime add table public.pkg_orders;
+  end if;
+end $$;
+
 -- 5) 예시 데이터 (원하면 이 블록만 지우고 RUN) ----------------------
 insert into public.pkg_items
   (id, code, name_ko, alias, type, cat, name_en, name_cn, spec, price, moq, lead, safety, stock_china, stock_forwarder, stock_korea, memo)

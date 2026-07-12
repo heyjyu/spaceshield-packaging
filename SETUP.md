@@ -34,6 +34,12 @@ secret / service_role 키는 코드 어디에도 없습니다.
 기존 테이블에는 **`supabase_migration_nas_flow.sql`** 을 SQL Editor 에 붙여넣고 RUN 하면 됩니다(데이터 유지).
 > 이 마이그레이션을 안 돌리면 품목 저장 시 "column not found" 오류가 납니다.
 
+## 실시간 동기화 (여러 명이 동시에 쓸 때 필수)
+`supabase_schema.sql` 을 새로 RUN 했다면 이미 포함돼 있습니다.
+**이미 테이블을 만든 뒤**라면 **`supabase_migration_realtime.sql`** 을 SQL Editor 에 RUN 하세요.
+→ 한 사람이 재고·발주를 바꾸면 다른 사람 화면에도 몇 초 안에 자동 반영됩니다(새로고침 불필요).
+> 이 단계를 안 하면 각자 페이지를 새로고침해야 최신 데이터가 보이고, 동시에 편집하면 서로 덮어쓸 수 있습니다.
+
 ## 예시 데이터를 빼고 시작하려면?
 `supabase_schema.sql`에서 `-- 5) 예시 데이터` 아래 `insert` 블록만 지우고 RUN 하세요.
 

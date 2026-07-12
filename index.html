@@ -6,6 +6,7 @@
 <title>SPACE SHIELD · 패키지 관리대장 v1.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --ink:#17181a; --paper:#f4f4f1; --card:#fff;
@@ -29,6 +30,8 @@ header{background:var(--ink);color:#fff;padding:0 24px}
 .hd-btn{background:transparent;border:1px solid #4a4a48;color:#e6e6e2;border-radius:6px;padding:7px 14px;font-size:13px}
 .hd-btn:hover{border-color:#8a8a86}
 .hd-btn.primary{background:var(--tag);border-color:var(--tag);color:var(--ink);font-weight:700}
+.auth-state{color:#b9b9b3;font-size:12px;white-space:nowrap}
+.auth-state b{color:#fff;font-weight:600}
 .tabs{display:flex;gap:2px}
 .tab{background:transparent;border:none;color:#9a9a94;padding:10px 18px 12px;font-size:14px;font-weight:500;border-bottom:3px solid transparent}
 .tab.on{color:#fff;border-bottom-color:var(--tag)}
@@ -194,9 +197,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   <div class="hd-top">
     <div class="brand">Space Shield<small>패키지 관리대장 · Packaging Ledger</small></div>
     <div class="hd-sp"></div>
-    <button class="hd-btn" onclick="exportData()">데이터 내보내기</button>
-    <button class="hd-btn" onclick="document.getElementById('importFile').click()">불러오기</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <span class="auth-state" id="authState"></span>
+    <button class="hd-btn" onclick="exportData()">백업(JSON)</button>
+    <button class="hd-btn" id="authBtn" onclick="authBtnClick()">로그인</button>
     <button class="hd-btn primary" onclick="openItemModal()">+ 품목 등록</button>
   </div>
   <div class="tabs">
@@ -228,7 +231,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   </aside>
 
   <div class="content">
-    <div class="note-bar">프로토타입 — 작업 후 <b>데이터 내보내기</b>로 저장, 다음에 <b>불러오기</b>. 사진·작업지시서 이미지도 JSON에 함께 저장됩니다.</div>
+    <div class="note-bar" id="noteBar">Supabase 공유 데이터 — 모두에게 같은 화면이 보입니다. <b>열람은 로그인 없이</b>, 품목 수정·발주·단계 이동은 <b>로그인</b> 후 가능합니다.</div>
     <section id="viewItems">
       <div class="result-line" id="resultLine"></div>
       <div class="grid" id="itemGrid"></div>
@@ -302,6 +305,20 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   </div>
 </div>
 
+<!-- 관리자 로그인 -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal pad" style="max-width:380px">
+    <h2>관리자 로그인</h2>
+    <div class="f"><label>이메일</label><input id="l_email" type="email" placeholder="you@company.com"></div>
+    <div class="f"><label>비밀번호</label><input id="l_pw" type="password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="m-btns">
+      <button onclick="closeModal('loginOverlay')">취소</button>
+      <button class="save" onclick="doLogin()">로그인</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6">Supabase Authentication 에 등록된 계정으로 로그인합니다. 열람은 로그인 없이 가능하고, 편집·발주·단계 이동만 로그인이 필요합니다.</div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -315,75 +332,70 @@ const STAGES = [
 ];
 const TYPES=['비닐','박스·지류','스티커','기타'];
 
-let state = {
-  items: [
-    {
-      id:1, code:'G-OPP-04', nameKo:'OPP 지퍼백 (로고 인쇄)', alias:'',
-      type:'비닐', cat:'G OPP',
-      nameEn:'SPACE SHIELD_G OPP_No-04 (V2)',
-      nameCn:'OPP袋 180×230mm 前透明后白色印刷',
-      spec:'180×230mm · 전면 투명 / 후면 백색 인쇄 · 타공 2mm',
-      price:0.35, moq:30000, lead:15, safety:20000,
-      stock:{china:0, forwarder:12000, korea:6500},
-      memo:'품파이 포장 (品派包装) · 주문서 No.007001', photo:null, sheet:null
-    },
-    {
-      id:2, code:'G-BOX-02', nameKo:'범용 박스 2호 (V2)', alias:'반달',
-      type:'박스·지류', cat:'G BOX',
-      nameEn:'G BOX No.2 (V2)', nameCn:'通用纸盒 2号',
-      spec:'예시 — 규격 입력 필요',
-      price:0.6, moq:20000, lead:18, safety:15000,
-      stock:{china:25000, forwarder:0, korea:9000},
-      memo:'예시 데이터 — 실제 값으로 수정하세요', photo:null, sheet:null
-    },
-    {
-      id:3, code:'C-OPP-WS-S', nameKo:'워치 스트랩 OPP S size (V4)', alias:'',
-      type:'비닐', cat:'C OPP',
-      nameEn:'Watch Strap OPP S (V4)', nameCn:'表带OPP袋 S号 (V4)',
-      spec:'예시 — 규격 입력 필요',
-      price:0.12, moq:50000, lead:12, safety:30000,
-      stock:{china:0, forwarder:0, korea:22000},
-      memo:'예시 데이터', photo:null, sheet:null
-    },
-    {
-      id:4, code:'AF-STK-GU', nameKo:'가드업 라인업 사이드 스티커', alias:'',
-      type:'스티커', cat:'Armor Flex',
-      nameEn:'GuardUp Lineup Side Sticker', nameCn:'GuardUp 侧面贴纸',
-      spec:'예시 — 규격 입력 필요',
-      price:0.05, moq:100000, lead:10, safety:50000,
-      stock:{china:0, forwarder:0, korea:120000},
-      memo:'예시 데이터', photo:null, sheet:null
-    },
-    {
-      id:5, code:'G-STK-DUST', nameKo:'먼지 제거 스티커 세트', alias:'먼지스티커',
-      type:'스티커', cat:'G STK',
-      nameEn:'Dust Removal Sticker Set', nameCn:'除尘贴纸套装（清洁屏幕用）',
-      spec:'로고 스티커 2매 + 먼지 제거 스티커 1매 세트 · 흑색 인쇄',
-      price:0.09, moq:50000, lead:10, safety:40000,
-      stock:{china:30000, forwarder:0, korea:18000},
-      memo:'액정보호필름 동봉용 · 예시 수치', photo:null, sheet:null
-    }
-  ],
-  orders: [
-    {id:101, itemId:1, stage:'ordered', qty:30000, price:0.35, by:'김정환',
-     memo:'주문서 No.007001',
-     orderDate:'2026-07-09', eta:'2026-07-24', created:'2026-07-09'},
-    {id:100, itemId:1, stage:'arrived', qty:30000, price:0.32, by:'김정환',
-     memo:'', orderDate:'2025-11-14', eta:'2025-11-29', created:'2025-11-14'},
-    {id:102, itemId:2, stage:'request', qty:20000, price:0.6, by:'물류팀 조아름',
-     memo:'반달 얼마 안 남았습니다!', orderDate:'', eta:'', created:'2026-07-10'},
-    {id:103, itemId:2, stage:'arrived', qty:20000, price:0.58, by:'김정환',
-     memo:'', orderDate:'2026-04-02', eta:'2026-04-20', created:'2026-04-02'},
-    {id:104, itemId:5, stage:'arrived', qty:50000, price:0.08, by:'김정환',
-     memo:'', orderDate:'2025-08-21', eta:'2025-08-31', created:'2025-08-21'},
-    {id:105, itemId:5, stage:'arrived', qty:50000, price:0.09, by:'김정환',
-     memo:'단가 인상 (원자재)', orderDate:'2026-03-12', eta:'2026-03-22', created:'2026-03-12'}
-  ],
-  nextItemId:6, nextOrderId:106
-};
+/* ───────── Supabase (publishable 키 — 공개 안전, RLS로 쓰기 차단) ───────── */
+const SB_URL='https://tnuzqrqxptxrfozzjjek.supabase.co';
+const SB_KEY='sb_publishable_BSLM7lCKgpZWRtweb687og_F1RqFAYN';
+const BUCKET='pkg-images';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+let session=null;
 
+let state = { items:[], orders:[] };
 let ui={q:'', type:'all', sort:'orders'};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
+
+/* DB(snake) ↔ 화면(camel) 매핑 */
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', photo:i.photo||'', sheet:i.sheet||''};}
+function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
+function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
+
+/* 로드 */
+async function loadAll(){
+  const [ir,or_]=await Promise.all([
+    sb.from('pkg_items').select('*').order('id'),
+    sb.from('pkg_orders').select('*').order('created',{ascending:false})
+  ]);
+  if(ir.error||or_.error){ showConnError((ir.error||or_.error).message); return; }
+  state.items=ir.data.map(rowToItem);
+  state.orders=or_.data.map(rowToOrder);
+  if(detailItemId && !state.items.find(x=>x.id===detailItemId)) detailItemId=null;
+  render();
+}
+function showConnError(msg){
+  $('noteBar').innerHTML=`⚠️ Supabase 연결/테이블 오류: <b>${msg}</b><br>대시보드 SQL Editor 에서 <code>supabase_schema.sql</code> 을 먼저 실행하세요.`;
+  $('noteBar').style.background='var(--warn-soft)';$('noteBar').style.borderColor='#e6b8b0';$('noteBar').style.color='var(--warn)';
+}
+
+/* 저장 헬퍼 */
+async function dbInsertItem(i){const {data,error}=await sb.from('pkg_items').insert(itemToRow(i)).select('id').single();if(error)throw error;return data.id;}
+async function dbUpdateItem(i){const {error}=await sb.from('pkg_items').update(itemToRow(i)).eq('id',i.id);if(error)throw error;}
+async function dbUpdateItemStock(i){const {error}=await sb.from('pkg_items').update({stock_china:i.stock.china,stock_forwarder:i.stock.forwarder,stock_korea:i.stock.korea}).eq('id',i.id);if(error)throw error;}
+async function dbInsertOrder(o){const {data,error}=await sb.from('pkg_orders').insert(orderToRow(o)).select('id').single();if(error)throw error;o.id=data.id;}
+async function dbUpdateOrder(o){const {error}=await sb.from('pkg_orders').update(orderToRow(o)).eq('id',o.id);if(error)throw error;}
+async function dbDeleteOrder(id){const {error}=await sb.from('pkg_orders').delete().eq('id',id);if(error)throw error;}
+
+/* ───────── 인증 ───────── */
+async function initAuth(){
+  const {data}=await sb.auth.getSession(); session=data.session;
+  sb.auth.onAuthStateChange((_e,s)=>{session=s;renderAuthBar();});
+  renderAuthBar();
+}
+function isAuthed(){return !!session;}
+function renderAuthBar(){
+  const email=session&&session.user&&session.user.email;
+  $('authState').innerHTML=email?`<b>${email}</b> · 편집 가능`:'열람 모드';
+  $('authBtn').textContent=email?'로그아웃':'로그인';
+}
+function authBtnClick(){ if(isAuthed()) sb.auth.signOut().then(()=>toast('로그아웃되었습니다')); else openLogin(); }
+function openLogin(){ $('l_email').value=''; $('l_pw').value=''; $('loginOverlay').classList.add('on'); setTimeout(()=>$('l_email').focus(),50); }
+async function doLogin(){
+  const email=$('l_email').value.trim(), password=$('l_pw').value;
+  if(!email||!password){toast('이메일과 비밀번호를 입력하세요');return;}
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){toast('로그인 실패: '+error.message);return;}
+  closeModal('loginOverlay'); toast('로그인되었습니다 — 이제 편집할 수 있습니다');
+}
+function requireAuth(){ if(isAuthed())return true; toast('편집하려면 먼저 로그인하세요 (우측 상단 로그인)'); openLogin(); return false; }
 
 /* ───────── 유틸 ───────── */
 const $=id=>document.getElementById(id);
@@ -574,19 +586,31 @@ function zoomSheet(id){
 }
 
 /* ───────── 사진/지시서 업로드 (자동 리사이즈) ───────── */
-function pickPhoto(itemId,field){photoTarget={id:itemId,field};$('photoFile').click();}
+function pickPhoto(itemId,field){if(!requireAuth())return;photoTarget={id:itemId,field};$('photoFile').click();}
 function onPhotoPicked(e){
   const f=e.target.files[0]; if(!f||!photoTarget)return;
   const img=new Image();
-  img.onload=()=>{
-    const MAX=photoTarget.field==='sheet'?1400:900; // 지시서는 글자가 보여야 하므로 크게
+  img.onload=async ()=>{
+    const field=photoTarget.field;
+    const MAX=field==='sheet'?1400:900; // 지시서는 글자가 보여야 하므로 크게
     const scale=Math.min(1,MAX/Math.max(img.width,img.height));
     const c=document.createElement('canvas');
     c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    const it=state.items.find(x=>x.id===photoTarget.id);
-    if(it){it[photoTarget.field]=c.toDataURL('image/jpeg',photoTarget.field==='sheet'?0.85:0.78);render();toast(photoTarget.field==='sheet'?'작업지시서가 등록되었습니다':'사진이 등록되었습니다');}
     URL.revokeObjectURL(img.src);
+    const it=state.items.find(x=>x.id===photoTarget.id);
+    if(!it)return;
+    try{
+      const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',field==='sheet'?0.85:0.78));
+      const path=`items/${it.id}/${field}_${Date.now()}.jpg`;
+      const up=await sb.storage.from(BUCKET).upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+      if(up.error)throw up.error;
+      const url=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      it[field]=url;
+      await sb.from('pkg_items').update({[field]:url}).eq('id',it.id);
+      render();
+      toast(field==='sheet'?'작업지시서가 등록되었습니다':'사진이 등록되었습니다');
+    }catch(err){ toast('업로드 실패: '+err.message); }
   };
   img.src=URL.createObjectURL(f);
   e.target.value='';
@@ -598,6 +622,7 @@ async function copySheetImage(itemId){
   if(!i||!i.sheet){toast('작업지시서가 아직 등록되지 않았습니다 — [지시서 등록]을 먼저 눌러주세요');return;}
   try{
     const img=new Image();
+    img.crossOrigin='anonymous';
     await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=i.sheet;});
     const c=document.createElement('canvas');
     c.width=img.width;c.height=img.height;
@@ -646,31 +671,41 @@ function renderKanban(){
 function nextLabel(si){return ['발주 확정','제작완료 입고','포워딩 출고','국내 입고'][si]||'다음';}
 
 /* ───────── 단계 이동 (재고 자동 반영) ───────── */
-function moveOrder(oid,dir){
+async function moveOrder(oid,dir){
+  if(!requireAuth())return;
   const o=state.orders.find(x=>x.id===oid); if(!o)return;
   const si=STAGES.findIndex(s=>s.id===o.stage);
   const ni=si+dir;
   if(ni<0||ni>=STAGES.length)return;
   const it=itemOf(o);
   const from=o.stage, to=STAGES[ni].id;
+  let stockChanged=false;
   if(dir>0){
     if(from==='request'&&to==='ordered'){ o.orderDate=o.orderDate||today(); o.eta=o.eta||addDays(o.orderDate,(it&&it.lead)||14); }
-    if(from==='ordered'&&to==='chinaWh'&&it){ it.stock.china+=o.qty; }
-    if(from==='chinaWh'&&to==='forwarder'&&it){ it.stock.china-=o.qty; it.stock.forwarder+=o.qty; }
-    if(from==='forwarder'&&to==='arrived'&&it){ it.stock.forwarder-=o.qty; it.stock.korea+=o.qty; }
+    if(from==='ordered'&&to==='chinaWh'&&it){ it.stock.china+=o.qty; stockChanged=true; }
+    if(from==='chinaWh'&&to==='forwarder'&&it){ it.stock.china-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
+    if(from==='forwarder'&&to==='arrived'&&it){ it.stock.forwarder-=o.qty; it.stock.korea+=o.qty; stockChanged=true; }
   } else {
-    if(from==='chinaWh'&&to==='ordered'&&it){ it.stock.china-=o.qty; }
-    if(from==='forwarder'&&to==='chinaWh'&&it){ it.stock.forwarder-=o.qty; it.stock.china+=o.qty; }
-    if(from==='arrived'&&to==='forwarder'&&it){ it.stock.korea-=o.qty; it.stock.forwarder+=o.qty; }
+    if(from==='chinaWh'&&to==='ordered'&&it){ it.stock.china-=o.qty; stockChanged=true; }
+    if(from==='forwarder'&&to==='chinaWh'&&it){ it.stock.forwarder-=o.qty; it.stock.china+=o.qty; stockChanged=true; }
+    if(from==='arrived'&&to==='forwarder'&&it){ it.stock.korea-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
   }
   o.stage=to;
   render();
-  toast(`[${(it&&it.code)||''}] ${STAGES[ni].name} 단계로 이동`);
+  try{
+    await dbUpdateOrder(o);
+    if(stockChanged&&it) await dbUpdateItemStock(it);
+    toast(`[${(it&&it.code)||''}] ${STAGES[ni].name} 단계로 이동`);
+  }catch(e){ toast('이동 저장 실패: '+e.message+' — 새로고침 후 재시도'); loadAll(); }
 }
-function delOrder(oid){
+async function delOrder(oid){
+  if(!requireAuth())return;
   if(!confirm('입고 완료된 이 주문 기록을 삭제할까요?\n(재고 수치는 유지되지만, "발주 N회" 집계에서 빠져 정렬 순서에 영향을 줍니다)'))return;
-  state.orders=state.orders.filter(o=>o.id!==oid);
-  render();
+  try{
+    await dbDeleteOrder(oid);
+    state.orders=state.orders.filter(o=>o.id!==oid);
+    render();
+  }catch(e){ toast('삭제 실패: '+e.message); }
 }
 
 /* ───────── 중문 메시지 ───────── */
@@ -694,6 +729,7 @@ function requestShipment(itemId){
 
 /* ───────── 품목 CRUD ───────── */
 function openItemModal(id){
+  if(!requireAuth())return;
   editingItemId=id||null;
   $('itemModalTitle').textContent=id?'품목 수정':'품목 등록';
   const i=id?state.items.find(x=>x.id===id):null;
@@ -707,7 +743,7 @@ function openItemModal(id){
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
 }
-function saveItem(){
+async function saveItem(){
   const d={
     code:$('i_code').value.trim(), nameKo:$('i_nameKo').value.trim(),
     type:$('i_type').value, cat:$('i_cat').value.trim(), alias:$('i_alias').value.trim(),
@@ -718,13 +754,16 @@ function saveItem(){
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
   if(!d.code||!d.nameKo){toast('관리코드와 한국명은 필수입니다');return;}
-  if(editingItemId){Object.assign(state.items.find(x=>x.id===editingItemId),d);}
-  else{d.id=state.nextItemId++;d.photo=null;d.sheet=null;state.items.push(d);}
-  closeModal('itemOverlay');render();toast('저장되었습니다');
+  try{
+    if(editingItemId){ const it=state.items.find(x=>x.id===editingItemId); Object.assign(it,d); await dbUpdateItem(it); }
+    else{ d.photo=null; d.sheet=null; d.id=await dbInsertItem(d); state.items.push(d); }
+    closeModal('itemOverlay');render();toast('저장되었습니다');
+  }catch(e){ toast('저장 실패: '+e.message); }
 }
 
 /* ───────── 발주 요청 ───────── */
 function openOrderModal(itemId){
+  if(!requireAuth())return;
   $('o_item').innerHTML=state.items.map(i=>`<option value="${i.id}" ${i.id===itemId?'selected':''}>[${i.code}] ${i.nameKo}${i.alias?` ('${i.alias}')`:''}</option>`).join('');
   $('o_by').value=''; $('o_memo').value='';
   prefillOrder();
@@ -741,19 +780,21 @@ function prefillOrder(){
     ?`직전 주문: ${last.orderDate||last.created} · ${fmt(last.qty)}개 · ¥${last.price||'-'}`
     :'첫 주문 품목입니다 (수량은 MOQ 기준)';
 }
-function saveOrder(){
+async function saveOrder(){
   const itemId=Number($('o_item').value);
   const qty=Number($('o_qty').value);
   const price=Number($('o_price').value)||0;
   if(!qty){toast('수량을 입력하세요');return;}
-  state.orders.push({
-    id:state.nextOrderId++, itemId, stage:'request', qty, price,
+  const o={ itemId, stage:'request', qty, price,
     by:$('o_by').value.trim(), memo:$('o_memo').value.trim(),
-    orderDate:'', eta:'', created:today()
-  });
-  closeModal('orderOverlay');
-  switchView('kanban');
-  toast('발주 요청이 올라갔습니다 — [발주 요청] 칸에서 확인하세요');
+    orderDate:'', eta:'', created:today() };
+  try{
+    await dbInsertOrder(o);
+    state.orders.unshift(o);
+    closeModal('orderOverlay');
+    switchView('kanban');
+    toast('발주 요청이 올라갔습니다 — [발주 요청] 칸에서 확인하세요');
+  }catch(e){ toast('요청 실패: '+e.message); }
 }
 
 function closeModal(id){$(id).classList.remove('on');}
@@ -780,15 +821,10 @@ function exportData(){
   a.click();
   toast('JSON 파일로 저장했습니다 (사진·지시서 포함)');
 }
-function importData(e){
-  const f=e.target.files[0]; if(!f)return;
-  const r=new FileReader();
-  r.onload=()=>{try{state=JSON.parse(r.result);detailItemId=null;render();toast('데이터를 불러왔습니다');}catch{toast('파일을 읽을 수 없습니다');}};
-  r.readAsText(f);
-  e.target.value='';
-}
 
 render();
+initAuth();
+loadAll();
 </script>
 </body>
 </html>

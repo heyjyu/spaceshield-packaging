@@ -10,10 +10,17 @@
 - **주문 칸반** — 발주 요청 → 발주완료·제작중(납기 D-day) → 중국창고 → 포워딩 → 국내 입고 5단계, 단계 이동 시 위치별 재고 자동 반영
 - **중문 메시지 자동 생성** — 재주문/출고요청 메시지(직전 주문 날짜·수량·단가 포함), 작업지시서 이미지 클립보드 복사
 - **주문 이력** — 건별 발주일·수량·단가·금액·상태, 연도별 합계, 단가 변동 추적
-- **데이터 영속화** — 브라우저 메모리 + JSON 수동 내보내기/불러오기 (사진·지시서 이미지 base64 포함)
+- **데이터 영속화** — Supabase 공유 DB(`pkg_items`/`pkg_orders`), 사진·지시서는 Storage 버킷. 모두에게 같은 화면, JSON 백업 지원
+- **접근 제어** — 열람은 로그인 없이, 편집·발주·단계 이동은 로그인한 사람만(RLS). 클라이언트엔 publishable 키만 노출
 
-## 사용
+## 라이브
 
-정적 단일 HTML. `index.html`을 열면 바로 동작한다. 라이브: GitHub Pages 참조.
+- **https://heyjyu.github.io/spaceshield-packaging/**
 
-> 프로토타입 단계 — 작업 후 **데이터 내보내기**로 JSON 저장, 다음에 **불러오기**. 제품화 시 NAS/DB 영속화·다중 사용자·이카운트 코드 연동 예정.
+## 처음 켤 때 (1회)
+
+Supabase 테이블 생성 + 로그인 계정 추가가 필요합니다. **[SETUP.md](SETUP.md)** 참고 —
+`supabase_schema.sql`을 Supabase SQL Editor에 붙여넣고 RUN, 그다음 Authentication에서 사용자 추가.
+
+> 카탈로그(spaceshied-catalog)와 **같은 Supabase 프로젝트**를 재사용하며 테이블만 새로 추가한다.
+> secret/service_role 키는 코드에 없다.

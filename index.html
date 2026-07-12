@@ -124,6 +124,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .stk .l{font-size:11px;color:var(--muted)}
 .stk .n{font-family:'IBM Plex Mono';font-size:17px;font-weight:600;margin-top:1px}
 .stk.hot{background:var(--tag-soft);border-color:#ecd9a0}
+.stk .n.editable{cursor:text;text-decoration:underline dotted var(--line-strong);text-underline-offset:3px}
+.stk .n.editable:hover{color:var(--blue)}
+.stk-edit{width:100%;border:1px solid var(--blue);border-radius:6px;padding:2px 3px;font-family:'IBM Plex Mono';font-size:16px;font-weight:600;text-align:center;background:#fff;-moz-appearance:textfield}
 .dt-total{font-size:12.5px;color:var(--muted);margin-bottom:12px}
 .dt-total b{font-family:'IBM Plex Mono';font-size:15px;color:var(--ink)}
 .dt-meta{border-top:1px solid var(--line);padding-top:12px;font-size:12.5px;color:#555;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
@@ -519,6 +522,8 @@ function openDetail(id){detailItemId=id;renderDetail(id);$('detailOverlay').clas
 function renderDetail(id){
   const i=state.items.find(x=>x.id===id); if(!i){closeModal('detailOverlay');return;}
   const tot=totalStock(i);
+  const canEdit=isAuthed();
+  const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div><div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
   const ordHtml=orderHistoryHtml(i);
   const photo=i.photo?`<img src="${i.photo}" alt="${i.nameKo}">`:`<div class="no-photo">등록된 사진이 없습니다</div>`;
   const sheetThumb=i.sheet
@@ -536,9 +541,9 @@ function renderDetail(id){
       <div class="dt-sub">${i.nameEn||''}</div>
       <div class="dt-cn">中 ${i.nameCn||'중문명 미입력'}</div>
       <div class="dt-stocks">
-        <div class="stk ${i.stock.china?'hot':''}"><div class="l">중국창고</div><div class="n">${fmt(i.stock.china)}</div></div>
-        <div class="stk"><div class="l">포워딩</div><div class="n">${fmt(i.stock.forwarder)}</div></div>
-        <div class="stk"><div class="l">국내</div><div class="n">${fmt(i.stock.korea)}</div></div>
+        ${stkCell('china','중국창고',i.stock.china)}
+        ${stkCell('forwarder','포워딩',i.stock.forwarder)}
+        ${stkCell('korea','국내',i.stock.korea)}
       </div>
       <div class="dt-total">총 보유 <b>${fmt(tot)}</b> / 안전재고 ${fmt(i.safety)} · 누적 발주 ${orderCount(i.id)}회</div>
       <div class="dt-meta">
@@ -770,6 +775,34 @@ function copyFlowUrl(itemId){
   const i=state.items.find(x=>x.id===itemId); if(!i)return;
   if(!i.flowUrl){toast('FLOW 기획서 URL이 미등록입니다 — [품목 정보 수정]에서 입력하세요');return;}
   copyText(i.flowUrl,'FLOW 기획서 URL이 복사되었습니다');
+}
+
+/* ───────── 재고 인라인 수정 (상세카드, 로그인 시) ───────── */
+let stockEditing=false;
+const STK_LABEL={china:'중국창고',forwarder:'포워딩',korea:'국내'};
+function beginStockEdit(id,field,el){
+  if(!isAuthed()){requireAuth();return;}
+  if(stockEditing)return;
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  stockEditing=true;
+  const cur=it.stock[field];
+  el.innerHTML=`<input class="stk-edit" type="number" min="0" value="${cur}">`;
+  const inp=el.firstChild; inp.focus(); inp.select();
+  let done=false;
+  const finish=async(save)=>{
+    if(done)return; done=true; stockEditing=false;
+    if(!save){renderDetail(id);return;}
+    const v=Math.max(0,Math.round(Number(inp.value)||0));
+    if(v===cur){renderDetail(id);return;}
+    it.stock[field]=v; render();
+    try{ await dbUpdateItemStock(it); toast(`${it.code} ${STK_LABEL[field]} 재고 ${fmt(v)}개로 수정`); }
+    catch(e){ toast('저장 실패: '+e.message); loadAll(); }
+  };
+  inp.onblur=()=>finish(true);
+  inp.onkeydown=(e)=>{
+    if(e.key==='Enter'){e.preventDefault();inp.blur();}
+    else if(e.key==='Escape'){done=true;stockEditing=false;renderDetail(id);}
+  };
 }
 
 /* ───────── 품목 CRUD ───────── */

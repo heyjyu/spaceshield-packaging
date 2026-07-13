@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPACE SHIELD · 패키지 관리대장 v1.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://tnuzqrqxptxrfozzjjek.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -203,6 +206,15 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 
 #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:8px;font-size:13.5px;display:none;z-index:99;max-width:90vw}
 .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:13px}
+/* 로딩 스켈레톤 */
+@keyframes shimmer{0%{background-position:-450px 0}100%{background-position:450px 0}}
+.skel-box,.skel-line,.skel-bar{background:linear-gradient(90deg,#e9e9e5 25%,#f4f4f1 37%,#e9e9e5 63%);background-size:900px 100%;animation:shimmer 1.25s infinite linear;border-radius:6px}
+.item-card.skel{cursor:default;pointer-events:none}
+.item-card.skel .ph{background:#eee}
+.item-card.skel .ph .skel-box{width:100%;height:100%;border-radius:0}
+.skel-line{height:12px;margin:9px 0}
+.skel-line.w40{width:40%}.skel-line.w60{width:60%}.skel-line.w80{width:80%}
+.skel-bar{display:inline-block;width:66px;height:20px;vertical-align:middle}
 @media(max-width:900px){
   .wrap{flex-direction:column}
   aside{width:100%;position:static}
@@ -311,7 +323,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     <div class="f"><label>FLOW 기획서 URL</label><input id="i_flow" placeholder="https://..."></div>
     <div class="f"><label>메모</label><textarea id="i_memo" placeholder="거래처명, 담당자 위챗, 특이사항 등"></textarea></div>
     <div class="m-btns">
-      <button onclick="closeModal('itemOverlay')">취소</button>
+      <button onclick="tryClose('itemOverlay')">취소</button>
       <button class="save" onclick="saveItem()">저장</button>
     </div>
   </div>
@@ -330,7 +342,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     <div class="f" style="margin-top:-4px"><span id="o_lastinfo" style="font-size:12px;color:var(--muted)"></span></div>
     <div class="f"><label>메모 (사유, 긴급 여부 등)</label><textarea id="o_memo"></textarea></div>
     <div class="m-btns">
-      <button onclick="closeModal('orderOverlay')">취소</button>
+      <button onclick="tryClose('orderOverlay')">취소</button>
       <button class="save" onclick="saveOrder()">요청 올리기</button>
     </div>
   </div>
@@ -371,6 +383,7 @@ const sb = window.supabase.createClient(SB_URL, SB_KEY);
 let session=null;
 
 let state = { items:[], orders:[] };
+let loaded=false;
 let ui={q:'', type:'all', sort:'orders'};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 
@@ -386,7 +399,8 @@ async function loadAll(){
     sb.from('pkg_items').select('*').order('id'),
     sb.from('pkg_orders').select('*').order('created',{ascending:false})
   ]);
-  if(ir.error||or_.error){ showConnError((ir.error||or_.error).message); return; }
+  loaded=true;
+  if(ir.error||or_.error){ showConnError((ir.error||or_.error).message); render(); return; }
   state.items=ir.data.map(rowToItem);
   state.orders=or_.data.map(rowToOrder);
   if(detailItemId && !state.items.find(x=>x.id===detailItemId)) detailItemId=null;
@@ -468,6 +482,11 @@ function statusBadge(i){
 function render(){renderSummary();renderTypeFilters();renderItems();renderKanban();if(detailItemId)renderDetail(detailItemId);}
 
 function renderSummary(){
+  if(!loaded){
+    $('summary').innerHTML=['중국창고 보관','포워딩 보관','국내 보유','진행 중 주문','부족 경고 품목']
+      .map(l=>`<div class="sum-cell"><div class="lbl">${l}</div><div class="val"><span class="skel-bar"></span></div></div>`).join('');
+    return;
+  }
   const tChina=state.items.reduce((s,i)=>s+i.stock.china,0);
   const tFwd=state.items.reduce((s,i)=>s+i.stock.forwarder,0);
   const tKr=state.items.reduce((s,i)=>s+i.stock.korea,0);
@@ -503,6 +522,11 @@ function filteredItems(){
 
 function renderItems(){
   const g=$('itemGrid');
+  if(!loaded){
+    $('resultLine').textContent='불러오는 중…';
+    g.innerHTML=Array.from({length:6}).map(()=>`<div class="item-card skel"><div class="ph"><div class="skel-box"></div></div><div class="ic-info"><div class="skel-line w40"></div><div class="skel-line w80"></div><div class="skel-line w60"></div></div></div>`).join('');
+    return;
+  }
   const list=filteredItems();
   $('resultLine').textContent=`${list.length}개 품목${ui.sort==='orders'?' · 발주 많은 순':''}${ui.q?` · "${ui.q}" 검색`:''}`;
   if(!list.length){g.innerHTML='<div class="empty">조건에 맞는 품목이 없습니다.</div>';return;}
@@ -845,6 +869,7 @@ function openItemModal(id){
   $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:'';
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
+  markClean('itemOverlay');
 }
 async function saveItem(){
   const d={
@@ -873,6 +898,7 @@ function openOrderModal(itemId){
   prefillOrder();
   closeModal('detailOverlay');
   $('orderOverlay').classList.add('on');
+  markClean('orderOverlay');
 }
 function prefillOrder(){
   const i=state.items.find(x=>x.id===Number($('o_item').value));
@@ -902,9 +928,37 @@ async function saveOrder(){
 }
 
 function closeModal(id){$(id).classList.remove('on');}
+
+/* ── 폼 미저장 경고 ── */
+const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_nas','i_flow'];
+const ORDER_FIELDS=['o_item','o_qty','o_price','o_by','o_memo'];
+let formSnap={};
+function snapForm(fields){return fields.map(id=>$(id).value).join('');}
+function markClean(overlayId){
+  if(overlayId==='itemOverlay')formSnap.item=snapForm(ITEM_FIELDS);
+  else if(overlayId==='orderOverlay')formSnap.order=snapForm(ORDER_FIELDS);
+}
+function isDirty(overlayId){
+  if(overlayId==='itemOverlay')return snapForm(ITEM_FIELDS)!==formSnap.item;
+  if(overlayId==='orderOverlay')return snapForm(ORDER_FIELDS)!==formSnap.order;
+  return false;
+}
+function tryClose(overlayId){
+  if(isDirty(overlayId)&&!confirm('저장하지 않은 내용이 있습니다. 저장하지 않고 닫을까요?'))return;
+  closeModal(overlayId);
+  if(overlayId==='detailOverlay')detailItemId=null;
+}
 document.querySelectorAll('.overlay').forEach(ov=>{
   if(ov.id==='zoomOverlay')return;
-  ov.addEventListener('click',e=>{if(e.target===ov){ov.classList.remove('on');if(ov.id==='detailOverlay')detailItemId=null;}});
+  ov.addEventListener('click',e=>{if(e.target===ov)tryClose(ov.id);});
+});
+/* Esc 로 닫기 (인라인 재고 편집은 자체 처리) */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||stockEditing)return;
+  const open=[...document.querySelectorAll('.overlay.on')].pop();
+  if(!open)return;
+  if(open.id==='zoomOverlay'){open.classList.remove('on');return;}
+  tryClose(open.id);
 });
 
 /* ───────── 뷰 전환 / 데이터 IO ───────── */

@@ -103,6 +103,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .stk-split div b{display:block;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink);font-weight:600}
 .stk-split div+div{border-left:1px solid var(--line)}
 .stk-split div.hot{background:var(--tag-soft)}
+.stk-split b.editable{cursor:text;text-decoration:underline dotted var(--line-strong);text-underline-offset:2px}
+.stk-split b.editable:hover{color:var(--blue)}
+.stk-split .stk-edit{font-size:12.5px;padding:0 2px;border-radius:4px}
 
 /* ── 상세 모달 ── */
 .overlay{position:fixed;inset:0;background:rgba(20,20,20,.5);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow-y:auto}
@@ -503,6 +506,10 @@ function renderItems(){
   const list=filteredItems();
   $('resultLine').textContent=`${list.length}개 품목${ui.sort==='orders'?' · 발주 많은 순':''}${ui.q?` · "${ui.q}" 검색`:''}`;
   if(!list.length){g.innerHTML='<div class="empty">조건에 맞는 품목이 없습니다.</div>';return;}
+  const authed=isAuthed();
+  const se=(i,f)=>authed
+    ? `<b class="editable" onclick="event.stopPropagation();beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정">${fmt(i.stock[f])}</b>`
+    : `<b>${fmt(i.stock[f])}</b>`;
   g.innerHTML=list.map(i=>{
     const tot=totalStock(i);
     const oc=orderCount(i.id);
@@ -522,9 +529,9 @@ function renderItems(){
         <div class="ic-alias">${i.alias?`별칭 <b>${i.alias}</b>`:''}</div>
         <div class="stk-line">총 보유 <b>${fmt(tot)}</b><span>/ 안전 ${fmt(i.safety)}</span></div>
         <div class="stk-split">
-          <div class="${i.stock.china?'hot':''}">중국<b>${fmt(i.stock.china)}</b></div>
-          <div>포워딩<b>${fmt(i.stock.forwarder)}</b></div>
-          <div>국내<b>${fmt(i.stock.korea)}</b></div>
+          <div class="${i.stock.china?'hot':''}">중국${se(i,'china')}</div>
+          <div>포워딩${se(i,'forwarder')}</div>
+          <div>국내${se(i,'korea')}</div>
         </div>
       </div>
     </div>`;
@@ -806,17 +813,19 @@ function beginStockEdit(id,field,el){
   const flush=()=>{ if(pendingReload){pendingReload=false;scheduleReload();} };
   const finish=async(save)=>{
     if(done)return; done=true; stockEditing=false;
-    if(!save){renderDetail(id);flush();return;}
+    if(!save){render();flush();return;}
     const v=Math.max(0,Math.round(Number(inp.value)||0));
-    if(v===cur){renderDetail(id);flush();return;}
+    if(v===cur){render();flush();return;}
     it.stock[field]=v; render();
     try{ await dbUpdateItemStock(it); toast(`${it.code} ${STK_LABEL[field]} 재고 ${fmt(v)}개로 수정`); }
     catch(e){ toast('저장 실패: '+e.message); loadAll(); }
   };
   inp.onblur=()=>finish(true);
+  inp.onclick=(e)=>e.stopPropagation();
   inp.onkeydown=(e)=>{
+    e.stopPropagation();
     if(e.key==='Enter'){e.preventDefault();inp.blur();}
-    else if(e.key==='Escape'){done=true;stockEditing=false;renderDetail(id);flush();}
+    else if(e.key==='Escape'){done=true;stockEditing=false;render();flush();}
   };
 }
 

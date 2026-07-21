@@ -115,6 +115,15 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .badge.req{background:#e67e22;color:#fff}
 .badge.dsgn{background:#f0b429;color:#3a2e00}
 .badge.set{background:#fff;border:1px dashed var(--line-strong);color:var(--muted);font-weight:600}
+/* 폼 사진 관리 */
+.photo-manage{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ph-thumb{position:relative;width:74px;height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.ph-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-thumb .rep{position:absolute;top:0;left:0;background:var(--tag);color:var(--ink);font-size:9px;font-weight:700;padding:1px 5px;border-bottom-right-radius:6px}
+.ph-thumb button{position:absolute;top:2px;right:2px;width:19px;height:19px;border:none;border-radius:50%;background:rgba(20,20,20,.72);color:#fff;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ph-add{width:74px;height:74px;border:1.5px dashed var(--line-strong);background:var(--paper);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
+.ph-add:hover{border-color:var(--ink);color:var(--ink)}
+.ph-note{font-size:12.5px;color:var(--muted);padding:6px 0}
 .badge-btn{border:none;background:none;padding:0;cursor:pointer;font:inherit;line-height:0}
 .badge-btn:hover{filter:brightness(1.05)}
 .status-menu{position:fixed;z-index:200;background:#fff;border:1px solid var(--line-strong);border-radius:11px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:5px;display:none;min-width:200px}
@@ -345,12 +354,12 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     </div>
     <div class="f"><label>상태 (뱃지)</label>
       <select id="i_status">
-        <option value="">자동 — 재고/발주 상태 자동 표시</option>
-        <option value="재고부족">재고부족 — 사무실에 없음</option>
-        <option value="발주요청">발주요청 — 업체 요청 상태</option>
-        <option value="제작진행">제작진행 — 업체 제작중</option>
-        <option value="시안">시안 — 발주 전, 시안만</option>
-        <option value="단종">단종 — 더이상 제작 안 함</option>
+        <option value="재고부족">재고부족</option>
+        <option value="발주요청">발주요청</option>
+        <option value="제작진행">제작진행</option>
+        <option value="">(공란) — 표시 없음/자동</option>
+        <option value="시안">시안</option>
+        <option value="단종">단종</option>
         <option value="디자인변경">⚠️ 디자인변경 재발주</option>
       </select>
     </div>
@@ -372,6 +381,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     <div class="f"><label>NAS 전체 서버 경로</label><input id="i_nas" placeholder="\\NAS\SpaceShield\G STK\먼지제거스티커\"></div>
     <div class="f"><label>FLOW 기획서 URL</label><input id="i_flow" placeholder="https://..."></div>
     <div class="f"><label>메모</label><textarea id="i_memo" placeholder="거래처명, 담당자 위챗, 특이사항 등"></textarea></div>
+    <div class="f"><label>사진 (여러 장 · 첫 장이 대표 썸네일)</label><div id="i_photos" class="photo-manage"></div></div>
     <div class="m-btns">
       <button onclick="tryClose('itemOverlay')">취소</button>
       <button class="save" onclick="saveItem()">저장</button>
@@ -552,7 +562,7 @@ function openStatusMenu(id,ev){
   ev.stopPropagation();
   if(!isAuthed()){requireAuth();return;}
   const it=state.items.find(x=>x.id===id); if(!it)return;
-  const opts=[['','자동 — 재고/발주 자동 표시'],['재고부족','🔴 재고부족'],['발주요청','🟠 발주요청'],['제작진행','🔵 제작진행'],['시안','🟣 시안'],['단종','⚫ 단종'],['디자인변경','⚠️ 디자인변경 재발주']];
+  const opts=[['재고부족','재고부족'],['발주요청','발주요청'],['제작진행','제작진행'],['','(공란)'],['시안','시안'],['단종','단종'],['디자인변경','⚠️']];
   const m=$('statusMenu');
   m.innerHTML=opts.map(([v,l])=>`<button class="${it.status===v?'on':''}" onclick="setStatus(${id},'${v}')">${l}</button>`).join('');
   m.classList.add('on');
@@ -686,15 +696,22 @@ function cycleDetailPhoto(id,dir){
   const it=state.items.find(x=>x.id===id); if(!it||!it.photos||it.photos.length<2)return;
   const n=it.photos.length; detailImgIdx=((detailImgIdx+dir)%n+n)%n; renderDetail(id);
 }
-async function deletePhoto(id){
+/* 품목 수정 폼의 사진 관리 (메모 아래) */
+function renderItemPhotos(id){
+  const box=$('i_photos'); if(!box)return;
+  if(!id){ box.innerHTML='<div class="ph-note">품목을 먼저 저장하면 사진을 추가할 수 있습니다.</div>'; return; }
+  const it=state.items.find(x=>x.id===id); const ph=(it&&it.photos)||[];
+  box.innerHTML =
+    ph.map((u,idx)=>`<div class="ph-thumb">${idx===0?'<span class="rep">대표</span>':''}<img src="${esc(u)}"><button type="button" title="삭제" onclick="removePhotoAt(${id},${idx})">×</button></div>`).join('')
+    + `<button type="button" class="ph-add" onclick="pickPhoto(${id},'photo')">＋ 사진 추가</button>`;
+}
+async function removePhotoAt(id,idx){
   if(!requireAuth())return;
-  const it=state.items.find(x=>x.id===id); if(!it||!it.photos||!it.photos.length)return;
-  const idx=Math.min(detailImgIdx, it.photos.length-1);
-  if(!confirm('현재 보이는 사진을 목록에서 삭제할까요?'))return;
+  const it=state.items.find(x=>x.id===id); if(!it||!it.photos||idx>=it.photos.length)return;
+  if(!confirm('이 사진을 삭제할까요?'))return;
   it.photos=it.photos.slice(0,idx).concat(it.photos.slice(idx+1));
   it.photo=it.photos[0]||'';
-  detailImgIdx=Math.max(0, Math.min(idx, it.photos.length-1));
-  try{ await sb.from('pkg_items').update({photos:it.photos, photo:it.photo}).eq('id',it.id); render(); }
+  try{ await sb.from('pkg_items').update({photos:it.photos, photo:it.photo}).eq('id',id); renderItemPhotos(id); render(); }
   catch(e){ toast('삭제 실패: '+e.message); loadAll(); }
 }
 function renderDetail(id){
@@ -718,8 +735,6 @@ function renderDetail(id){
     <div class="dt-photo">
       ${photo}
       <button class="x" onclick="closeModal('detailOverlay');detailItemId=null">✕</button>
-      <button class="cam" onclick="pickPhoto(${i.id},'photo')">＋ 사진 추가</button>
-      ${dph.length?`<button class="cam del" onclick="deletePhoto(${i.id})">현재 사진 삭제</button>`:''}
     </div>
     <div class="dt-body">
       <div class="dt-code"><span style="color:#c0392b;font-weight:700">${mid(i)}</span> ${i.code?esc(i.code)+' ':''}${i.cat?`<span style="color:#aaa">·</span> ${esc(i.cat)}`:''} ${badgeBtn(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
@@ -846,6 +861,7 @@ function onPhotoPicked(e){
         await sb.from('pkg_items').update({photos:it.photos, photo:it.photo}).eq('id',it.id);
       }
       render();
+      if($('itemOverlay').classList.contains('on')) renderItemPhotos(it.id);
       toast(field==='sheet'?'작업지시서가 등록되었습니다':`사진이 추가되었습니다 (총 ${(it.photos||[]).length}장)`);
     }catch(err){ toast('업로드 실패: '+err.message); }
   };
@@ -1025,6 +1041,7 @@ function openItemModal(id){
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
   $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
   $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:''; $('i_status').value=i?i.status:'';
+  renderItemPhotos(id||null);
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
   markClean('itemOverlay');

@@ -29,12 +29,11 @@ secret / service_role 키는 코드 어디에도 없습니다.
 `SB_KEY`는 **publishable(anon)** 키입니다 — 공개용으로 설계돼 코드에 노출돼도 안전합니다.
 쓰기는 로그인(JWT)한 사용자만 RLS로 허용됩니다.
 
-## 이미 테이블을 만든 뒤 컬럼이 추가됐다면? (마이그레이션)
-`nas_path` / `flow_url` / `buy_url`(NAS 경로·FLOW 기획서 URL·구매링크) 컬럼이 나중에 추가됩니다.
-기존 테이블에는 아래를 SQL Editor 에 붙여넣고 RUN 하면 됩니다(데이터 유지):
-- **`supabase_migration_nas_flow.sql`** (NAS·FLOW)
-- **`supabase_migration_buyurl.sql`** (구매링크)
-> ⚠️ 이 마이그레이션을 안 돌리면 **품목 저장 시 "column not found" 오류**가 납니다(저장 자체가 막힘). 새 컬럼 추가 후에는 반드시 먼저 RUN 하세요.
+## 이미 테이블을 만든 뒤 기능이 추가됐다면? (마이그레이션)
+👉 **`supabase_migration_all.sql`** 하나만 SQL Editor 에 붙여넣고 RUN 하면 끝입니다.
+신규 컬럼(nas_path·flow_url·buy_url·status)과 실시간 동기화를 한 번에 처리하고, 여러 번 돌려도 안전(데이터 유지).
+> ⚠️ 새 컬럼이 추가됐는데 이걸 안 돌리면 **품목 저장 시 "column not found" 오류**가 나서 저장이 막힙니다. 앱에서 저장이 안 되면 이 파일부터 RUN 하세요.
+> (개별 파일 `supabase_migration_*.sql` 도 남겨뒀지만, 통합본 하나로 충분합니다.)
 
 ## 실시간 동기화 (여러 명이 동시에 쓸 때 필수)
 `supabase_schema.sql` 을 새로 RUN 했다면 이미 포함돼 있습니다.

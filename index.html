@@ -41,7 +41,7 @@ header{background:var(--ink);color:#fff;padding:0 24px}
 
 /* ── 요약 ── */
 .summary{display:flex;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
-.sum-cell{padding:12px 22px;border-right:1px solid var(--line);min-width:140px}
+.sum-cell{flex:1;padding:12px 22px;border-right:1px solid var(--line);min-width:140px}
 .sum-cell .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
 .sum-cell .val{font-family:'IBM Plex Mono';font-size:21px;font-weight:600;margin-top:2px}
 .sum-cell .val small{font-size:12px;color:var(--muted);font-weight:400}
@@ -101,6 +101,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .badge{display:inline-block;border-radius:5px;padding:2px 9px;font-size:11px;font-weight:700}
 .badge.low{background:var(--warn);color:#fff}
 .badge.prog{background:var(--blue);color:#fff}
+.badge.draft{background:#6b4fa1;color:#fff}
+.badge.disc{background:#4a4a48;color:#fff}
 .ic-info{padding:11px 14px 13px}
 .ic-code{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
 .ic-code .oc{font-size:10.5px;font-weight:400}
@@ -321,6 +323,13 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
       <div class="f"><label>카테고리 (NAS 분류)</label><input id="i_cat" placeholder="G BOX / C OPP / Armor Flex"></div>
       <div class="f"><label>별칭 (물류팀 은어)</label><input id="i_alias" placeholder="예: 반달"></div>
     </div>
+    <div class="f"><label>상태 (뱃지)</label>
+      <select id="i_status">
+        <option value="">자동 — 재고/발주 상태 자동 표시</option>
+        <option value="시안">시안 — 발주 전, 시안만 있음</option>
+        <option value="단종">단종 — 더이상 제작 안 함</option>
+      </select>
+    </div>
     <div class="f"><label>영문명 (작업지시서 기준)</label><input id="i_nameEn"></div>
     <div class="f"><label>중문명 (거래처 소통용)</label><input id="i_nameCn" placeholder="通用纸盒 2号"></div>
     <div class="f"><label>규격 / 사양</label><input id="i_spec"></div>
@@ -405,8 +414,8 @@ let ui={q:'', type:'all', sort:'orders', view:(()=>{try{return localStorage.getI
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', photo:i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', photo:i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -493,6 +502,8 @@ function totalStock(i){return i.stock.china+i.stock.forwarder+i.stock.korea;}
 function activeOrders(itemId){return state.orders.filter(o=>o.itemId===itemId&&o.stage!=='arrived');}
 function orderCount(itemId){return state.orders.filter(o=>o.itemId===itemId).length;}
 function statusBadge(i){
+  if(i.status==='단종')return '<span class="badge disc">단종</span>';
+  if(i.status==='시안')return '<span class="badge draft">시안</span>';
   if(totalStock(i)<i.safety)return '<span class="badge low">재고 부족</span>';
   if(activeOrders(i.id).length)return '<span class="badge prog">발주 진행중</span>';
   return '';
@@ -910,7 +921,7 @@ function openItemModal(id){
   $('i_moq').value=i?i.moq:''; $('i_lead').value=i?i.lead:'';
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
   $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
-  $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:'';
+  $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:''; $('i_status').value=i?i.status:'';
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
   markClean('itemOverlay');
@@ -923,7 +934,7 @@ async function saveItem(){
     spec:$('i_spec').value.trim(), price:Number($('i_price').value)||0,
     moq:Number($('i_moq').value)||0, lead:Number($('i_lead').value)||14,
     safety:Number($('i_safety').value)||0, memo:$('i_memo').value.trim(),
-    nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(),
+    nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(), status:$('i_status').value,
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
   if(!d.code||!d.nameKo){toast('관리코드와 한국명은 필수입니다');return;}
@@ -974,7 +985,7 @@ async function saveOrder(){
 function closeModal(id){$(id).classList.remove('on');}
 
 /* ── 폼 미저장 경고 ── */
-const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_buy','i_nas','i_flow'];
+const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_status','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_buy','i_nas','i_flow'];
 const ORDER_FIELDS=['o_item','o_qty','o_price','o_by','o_memo'];
 let formSnap={};
 function snapForm(fields){return fields.map(id=>$(id).value).join('');}

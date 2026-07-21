@@ -145,6 +145,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .stk-split div b{display:block;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink);font-weight:600}
 .stk-split div+div{border-left:1px solid var(--line)}
 .stk-split div.hot{background:var(--tag-soft)}
+.box-cnt{display:block;font-family:'IBM Plex Mono';font-size:9.5px;font-weight:600;color:#c0392b;letter-spacing:.02em;margin:1px 0 0}
+.dt-stocks .box-cnt{font-size:10.5px;margin:2px 0 1px}
 /* 카드 액션 버튼 */
 .card-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;align-items:stretch}
 .card-actions .ca{flex:0 0 auto;width:33px;height:31px;border:1px solid var(--line);background:var(--paper);border-radius:8px;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
@@ -380,7 +382,10 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
       <div class="f"><label>포워딩 재고</label><input id="i_sFwd" type="number" value="0"></div>
       <div class="f"><label>국내 재고</label><input id="i_sKr" type="number" value="0"></div>
     </div>
-    <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
+    <div class="f2">
+      <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
+      <div class="f"><label>박스당 입수량 (BOX 수 자동계산 · 0=미표시)</label><input id="i_boxqty" type="number" value="0" placeholder="예: 4500"></div>
+    </div>
     <div class="f"><label>구매링크 URL</label><input id="i_buy" placeholder="https://... (재주문/구매 페이지)"></div>
     <div class="f"><label>NAS 전체 서버 경로</label><input id="i_nas" placeholder="\\NAS\SpaceShield\G STK\먼지제거스티커\"></div>
     <div class="f"><label>FLOW 기획서 URL</label><input id="i_flow" placeholder="https://..."></div>
@@ -454,8 +459,8 @@ let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null
 let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', boxQty:r.box_qty||0, photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', box_qty:i.boxQty||0, photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -647,6 +652,7 @@ function renderItems(){
   const se=(i,f)=>authed
     ? `<b class="editable" onclick="event.stopPropagation();beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정">${fmt(i.stock[f])}</b>`
     : `<b>${fmt(i.stock[f])}</b>`;
+  const boxLine=(i,f)=> i.boxQty>0 ? `<span class="box-cnt">BOX : ${fmt(Math.round(i.stock[f]/i.boxQty))}</span>` : '';
   g.innerHTML=list.map(i=>{
     const tot=totalStock(i);
     const oc=orderCount(i.id);
@@ -671,8 +677,8 @@ function renderItems(){
         <div class="ic-alias">${i.alias?`별칭 <b>${esc(i.alias)}</b>`:''}</div>
         <div class="stk-line">총 보유 <b>${fmt(tot)}</b></div>
         <div class="stk-split">
-          <div class="${i.stock.china?'hot':''}">중국${se(i,'china')}</div>
-          <div>국내${se(i,'korea')}</div>
+          <div class="${i.stock.china?'hot':''}">중국${boxLine(i,'china')}${se(i,'china')}</div>
+          <div>국내${boxLine(i,'korea')}${se(i,'korea')}</div>
         </div>
         <div class="card-actions">
           <button class="ca ${i.buyUrl?'':'off'}" title="구매링크${i.buyUrl?' 열기':' (미등록)'}" onclick="event.stopPropagation();openBuyUrl(${i.id})">🔗</button>
@@ -722,7 +728,7 @@ function renderDetail(id){
   const i=state.items.find(x=>x.id===id); if(!i){closeModal('detailOverlay');return;}
   const tot=totalStock(i);
   const canEdit=isAuthed();
-  const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div><div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
+  const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div>${i.boxQty>0?`<div class="box-cnt">BOX : ${fmt(Math.round(i.stock[f]/i.boxQty))}</div>`:''}<div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
   const ordHtml=orderHistoryHtml(i);
   const dph=i.photos||[];
   const dIdx=Math.min(detailImgIdx, Math.max(0,dph.length-1));
@@ -1059,7 +1065,7 @@ function openItemModal(id){
   $('i_spec').value=i?i.spec:''; $('i_price').value=i?i.price:'';
   $('i_moq').value=i?i.moq:''; $('i_lead').value=i?i.lead:'';
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
-  $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
+  $('i_safety').value=i?i.safety:0; $('i_boxqty').value=i?i.boxQty:0; $('i_memo').value=i?i.memo:'';
   $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:''; $('i_status').value=i?i.status:'';
   renderItemPhotos(id||null);
   closeModal('detailOverlay');
@@ -1073,7 +1079,7 @@ async function saveItem(){
     nameEn:$('i_nameEn').value.trim(), nameCn:$('i_nameCn').value.trim(),
     spec:$('i_spec').value.trim(), price:Number($('i_price').value)||0,
     moq:Number($('i_moq').value)||0, lead:Number($('i_lead').value)||14,
-    safety:Number($('i_safety').value)||0, memo:$('i_memo').value.trim(),
+    safety:Number($('i_safety').value)||0, boxQty:Number($('i_boxqty').value)||0, memo:$('i_memo').value.trim(),
     nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(), status:$('i_status').value,
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
@@ -1141,7 +1147,7 @@ async function saveOrder(){
 function closeModal(id){$(id).classList.remove('on');}
 
 /* ── 폼 미저장 경고 ── */
-const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_status','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_buy','i_nas','i_flow'];
+const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_status','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_boxqty','i_memo','i_buy','i_nas','i_flow'];
 const ORDER_FIELDS=['o_item','o_qty','o_price','o_by','o_memo'];
 let formSnap={};
 function snapForm(fields){return fields.map(id=>$(id).value).join('');}

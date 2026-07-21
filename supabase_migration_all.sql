@@ -11,6 +11,7 @@ alter table public.pkg_items add column if not exists flow_url text default ''; 
 alter table public.pkg_items add column if not exists buy_url  text default '';   -- 구매링크 URL
 alter table public.pkg_items add column if not exists status   text default '';   -- 상태 뱃지 (''=자동/재고부족/발주요청/제작진행/시안/단종/디자인변경)
 alter table public.pkg_items add column if not exists photos   jsonb default '[]'; -- 사진 여러 장 URL 배열
+alter table public.pkg_items add column if not exists box_qty  int default 0;      -- 박스당 입수량 (BOX 수 자동계산)
 
 -- 실시간 동기화 (다른 사용자의 변경 자동 반영)
 do $$

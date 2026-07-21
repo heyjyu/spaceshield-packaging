@@ -81,6 +81,12 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .ph .no-photo{color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
 .ph .no-photo .s{font-family:'Archivo';font-weight:800;font-size:28px;color:#d6d5d0;letter-spacing:.1em;display:block}
 .ph .badge-float{position:absolute;top:9px;left:9px;display:flex;gap:5px}
+.ph-nav{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.82);color:#333;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2);z-index:2}
+.ph-nav:hover{background:#fff}
+.ph-nav.prev{left:8px}
+.ph-nav.next{right:8px}
+.ph-count{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-family:'IBM Plex Mono';z-index:2}
+.dt-photo .cam.del{right:auto;left:10px;background:rgba(192,57,43,.9);color:#fff}
 .type-inline{display:inline-block;border:1px solid var(--line-strong);border-radius:4px;padding:0 7px;font-size:10.5px;color:#555;font-weight:500;font-family:'Noto Sans KR';letter-spacing:0}
 /* 주문 이력 */
 .hist{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
@@ -103,6 +109,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .badge.prog{background:var(--blue);color:#fff}
 .badge.draft{background:#6b4fa1;color:#fff}
 .badge.disc{background:#4a4a48;color:#fff}
+.badge.req{background:#e67e22;color:#fff}
+.badge.dsgn{background:#f0b429;color:#3a2e00}
 .ic-info{padding:11px 14px 13px}
 .ic-mid{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;letter-spacing:.06em;color:#c0392b}
 .ic-code{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
@@ -327,8 +335,12 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     <div class="f"><label>상태 (뱃지)</label>
       <select id="i_status">
         <option value="">자동 — 재고/발주 상태 자동 표시</option>
-        <option value="시안">시안 — 발주 전, 시안만 있음</option>
+        <option value="재고부족">재고부족 — 사무실에 없음</option>
+        <option value="발주요청">발주요청 — 업체 요청 상태</option>
+        <option value="제작진행">제작진행 — 업체 제작중</option>
+        <option value="시안">시안 — 발주 전, 시안만</option>
         <option value="단종">단종 — 더이상 제작 안 함</option>
+        <option value="디자인변경">⚠️ 디자인변경 재발주</option>
       </select>
     </div>
     <div class="f"><label>영문명 (작업지시서 기준)</label><input id="i_nameEn"></div>
@@ -413,10 +425,11 @@ let state = { items:[], orders:[] };
 let loaded=false;
 let ui={q:'', type:'all', sort:'orders', view:(()=>{try{return localStorage.getItem('pkg_view')||'md'}catch{return 'md'}})()};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
+let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', photo:i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -504,8 +517,15 @@ function totalStock(i){return i.stock.china+i.stock.forwarder+i.stock.korea;}
 function activeOrders(itemId){return state.orders.filter(o=>o.itemId===itemId&&o.stage!=='arrived');}
 function orderCount(itemId){return state.orders.filter(o=>o.itemId===itemId).length;}
 function statusBadge(i){
-  if(i.status==='단종')return '<span class="badge disc">단종</span>';
-  if(i.status==='시안')return '<span class="badge draft">시안</span>';
+  switch(i.status){
+    case '단종':    return '<span class="badge disc">단종</span>';
+    case '시안':    return '<span class="badge draft">시안</span>';
+    case '디자인변경': return '<span class="badge dsgn">⚠️ 디자인변경 재발주</span>';
+    case '재고부족':  return '<span class="badge low">재고 부족</span>';
+    case '발주요청':  return '<span class="badge req">발주 요청</span>';
+    case '제작진행':  return '<span class="badge prog">제작 진행</span>';
+  }
+  // 자동
   if(totalStock(i)<i.safety)return '<span class="badge low">재고 부족</span>';
   if(activeOrders(i.id).length)return '<span class="badge prog">발주 진행중</span>';
   return '';
@@ -578,11 +598,16 @@ function renderItems(){
   g.innerHTML=list.map(i=>{
     const tot=totalStock(i);
     const oc=orderCount(i.id);
-    const photo=i.photo
-      ?`<img src="${esc(i.photo)}" alt="${esc(i.nameKo)}">`
-      :`<div class="no-photo"><span class="s">S</span>사진을 등록하세요</div>`;
+    const ph=i.photos||[];
+    const pIdx=Math.min(cardImgIdx[i.id]||0, Math.max(0,ph.length-1));
+    const photo=ph.length
+      ?`<img src="${esc(ph[pIdx])}" alt="${esc(i.nameKo)}">`+(ph.length>1
+        ?`<button class="ph-nav prev" onclick="event.stopPropagation();cyclePhoto(${i.id},-1)">‹</button>
+          <button class="ph-nav next" onclick="event.stopPropagation();cyclePhoto(${i.id},1)">›</button>
+          <div class="ph-count">${pIdx+1}/${ph.length}</div>`:'')
+      :`<div class="no-photo"><span class="s">S</span>사진 없음</div>`;
     return `
-    <div class="item-card" tabindex="0" onclick="openDetail(${i.id})" onkeydown="if(event.key==='Enter')openDetail(${i.id})">
+    <div class="item-card" data-item="${i.id}" tabindex="0" onclick="openDetail(${i.id})" onkeydown="if(event.key==='Enter')openDetail(${i.id})">
       <div class="ph">
         ${photo}
         <div class="badge-float">${statusBadge(i)}</div>
@@ -610,14 +635,44 @@ function renderItems(){
 }
 
 /* ───────── 상세 모달 ───────── */
-function openDetail(id){detailItemId=id;renderDetail(id);$('detailOverlay').classList.add('on');}
+function openDetail(id){detailItemId=id;detailImgIdx=0;renderDetail(id);$('detailOverlay').classList.add('on');}
+function cyclePhoto(id,dir){
+  const it=state.items.find(x=>x.id===id); if(!it||!it.photos||it.photos.length<2)return;
+  const n=it.photos.length;
+  cardImgIdx[id]=(((cardImgIdx[id]||0)+dir)%n+n)%n;
+  const ph=document.querySelector(`.item-card[data-item="${id}"] .ph`);
+  if(ph){ const img=ph.querySelector('img'); if(img)img.src=it.photos[cardImgIdx[id]];
+    const c=ph.querySelector('.ph-count'); if(c)c.textContent=(cardImgIdx[id]+1)+'/'+n; }
+}
+function cycleDetailPhoto(id,dir){
+  const it=state.items.find(x=>x.id===id); if(!it||!it.photos||it.photos.length<2)return;
+  const n=it.photos.length; detailImgIdx=((detailImgIdx+dir)%n+n)%n; renderDetail(id);
+}
+async function deletePhoto(id){
+  if(!requireAuth())return;
+  const it=state.items.find(x=>x.id===id); if(!it||!it.photos||!it.photos.length)return;
+  const idx=Math.min(detailImgIdx, it.photos.length-1);
+  if(!confirm('현재 보이는 사진을 목록에서 삭제할까요?'))return;
+  it.photos=it.photos.slice(0,idx).concat(it.photos.slice(idx+1));
+  it.photo=it.photos[0]||'';
+  detailImgIdx=Math.max(0, Math.min(idx, it.photos.length-1));
+  try{ await sb.from('pkg_items').update({photos:it.photos, photo:it.photo}).eq('id',it.id); render(); }
+  catch(e){ toast('삭제 실패: '+e.message); loadAll(); }
+}
 function renderDetail(id){
   const i=state.items.find(x=>x.id===id); if(!i){closeModal('detailOverlay');return;}
   const tot=totalStock(i);
   const canEdit=isAuthed();
   const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div><div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
   const ordHtml=orderHistoryHtml(i);
-  const photo=i.photo?`<img src="${esc(i.photo)}" alt="${esc(i.nameKo)}">`:`<div class="no-photo">등록된 사진이 없습니다</div>`;
+  const dph=i.photos||[];
+  const dIdx=Math.min(detailImgIdx, Math.max(0,dph.length-1));
+  const photo=dph.length
+    ?`<img src="${esc(dph[dIdx])}" alt="${esc(i.nameKo)}">`+(dph.length>1
+      ?`<button class="ph-nav prev" onclick="cycleDetailPhoto(${i.id},-1)">‹</button>
+        <button class="ph-nav next" onclick="cycleDetailPhoto(${i.id},1)">›</button>
+        <div class="ph-count">${dIdx+1}/${dph.length}</div>`:'')
+    :`<div class="no-photo">등록된 사진이 없습니다</div>`;
   const sheetThumb=i.sheet
     ?`<img src="${esc(i.sheet)}" alt="작업지시서" onclick="zoomSheet(${i.id})">`
     :`<div class="sheet-empty">지시서<br>미등록</div>`;
@@ -625,7 +680,8 @@ function renderDetail(id){
     <div class="dt-photo">
       ${photo}
       <button class="x" onclick="closeModal('detailOverlay');detailItemId=null">✕</button>
-      <button class="cam" onclick="pickPhoto(${i.id},'photo')">${i.photo?'사진 변경':'사진 추가'}</button>
+      <button class="cam" onclick="pickPhoto(${i.id},'photo')">＋ 사진 추가</button>
+      ${dph.length?`<button class="cam del" onclick="deletePhoto(${i.id})">현재 사진 삭제</button>`:''}
     </div>
     <div class="dt-body">
       <div class="dt-code"><span style="color:#c0392b;font-weight:700">${mid(i)}</span> ${i.code?esc(i.code)+' ':''}${i.cat?`<span style="color:#aaa">·</span> ${esc(i.cat)}`:''} ${statusBadge(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
@@ -742,10 +798,17 @@ function onPhotoPicked(e){
       const up=await sb.storage.from(BUCKET).upload(path,blob,{upsert:true,contentType:'image/jpeg'});
       if(up.error)throw up.error;
       const url=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-      it[field]=url;
-      await sb.from('pkg_items').update({[field]:url}).eq('id',it.id);
+      if(field==='sheet'){
+        it.sheet=url;
+        await sb.from('pkg_items').update({sheet:url}).eq('id',it.id);
+      }else{
+        it.photos=[...(it.photos||[]), url];   // 여러 장 누적
+        it.photo=it.photos[0];
+        detailImgIdx=it.photos.length-1;        // 방금 올린 사진 보여주기
+        await sb.from('pkg_items').update({photos:it.photos, photo:it.photo}).eq('id',it.id);
+      }
       render();
-      toast(field==='sheet'?'작업지시서가 등록되었습니다':'사진이 등록되었습니다');
+      toast(field==='sheet'?'작업지시서가 등록되었습니다':`사진이 추가되었습니다 (총 ${(it.photos||[]).length}장)`);
     }catch(err){ toast('업로드 실패: '+err.message); }
   };
   img.src=URL.createObjectURL(f);

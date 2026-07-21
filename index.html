@@ -225,6 +225,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .act{border:1px solid var(--line-strong);background:var(--card);border-radius:8px;padding:10px 4px;font-size:13px;font-weight:500}
 .act:hover{background:var(--paper)}
 .act.gold{background:var(--tag);border-color:var(--tag);font-weight:700}
+.act.danger{width:100%;margin-top:8px;border-color:#e6b8b0;color:var(--warn);font-weight:600}
+.act.danger:hover{background:var(--warn-soft);border-color:var(--warn)}
 
 /* 지시서 확대 보기 */
 #zoomOverlay img{max-width:min(92vw,1000px);max-height:86vh;border-radius:10px;background:#fff}
@@ -329,7 +331,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     <div class="sb-box">
       <h4>검색</h4>
       <div class="search-wrap">
-        <input id="q" placeholder="2호, 반달, 코드, 별칭…" oninput="onSearchInput(this.value)">
+        <input id="q" placeholder="2호, 반달, 코드, 별칭, 시안…" oninput="onSearchInput(this.value)">
         <button id="qClear" onclick="clearSearch()" title="지우기" style="display:none">✕</button>
       </div>
     </div>
@@ -686,7 +688,7 @@ function filteredItems(){
   if(ui.chinaOnly)list=list.filter(i=>i.stock.china>0);
   const q=ui.q.trim().toLowerCase();
   if(q)list=list.filter(i=>
-    [i.code,i.nameKo,i.nameEn,i.nameCn,i.alias,i.cat,i.spec].join(' ').toLowerCase().includes(q));
+    [i.code,i.nameKo,i.nameEn,i.nameCn,i.alias,i.cat,i.spec,i.status,(i.status===''?'공란':'')].join(' ').toLowerCase().includes(q));
   if(ui.sort==='orders')list.sort((a,b)=>orderCount(b.id)-orderCount(a.id)||a.nameKo.localeCompare(b.nameKo,'ko'));
   else if(ui.sort==='low')list.sort((a,b)=>(totalStock(a)-a.safety)-(totalStock(b)-b.safety));
   else list.sort((a,b)=>a.nameKo.localeCompare(b.nameKo,'ko'));
@@ -856,6 +858,7 @@ function renderDetail(id){
         <button class="act" onclick="requestShipment(${i.id})">중국창고 출고요청 (中)</button>
         <button class="act" onclick="openItemModal(${i.id})">품목 정보 수정</button>
       </div>
+      <button class="act danger" onclick="deleteItemFull(${i.id})">🗑 품목 삭제</button>
     </div>`;
 }
 /* 주문 이력: 전체 테이블 + 연도별 합계 */
@@ -1141,6 +1144,22 @@ function openItemModal(id){
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
   markClean('itemOverlay');
+}
+async function deleteItemFull(id){
+  if(!requireAuth())return;
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  const oc=state.orders.filter(o=>o.itemId===id).length;
+  if(!confirm(`'${it.nameKo}' 품목을 삭제할까요?${oc?`\n\n연관된 주문 기록 ${oc}건도 함께 삭제됩니다.`:''}\n(되돌릴 수 없습니다)`))return;
+  try{
+    await sb.from('pkg_orders').delete().eq('item_id',id);   // 연관 주문 먼저
+    const {error}=await sb.from('pkg_items').delete().eq('id',id);
+    if(error)throw error;
+    state.orders=state.orders.filter(o=>o.itemId!==id);
+    state.items=state.items.filter(x=>x.id!==id);
+    closeModal('detailOverlay'); detailItemId=null;
+    render();
+    toast(`'${it.nameKo}' 품목이 삭제되었습니다${oc?` (주문 ${oc}건 포함)`:''}`);
+  }catch(e){ toast('삭제 실패: '+e.message); loadAll(); }
 }
 async function saveItem(){
   const d={

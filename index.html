@@ -608,16 +608,18 @@ function renderSummary(){
   }
   const inProg=state.orders.filter(o=>o.stage!=='arrived').length;
   const low=state.items.filter(i=>totalStock(i)<i.safety).length;
-  $('summary').innerHTML=`
-    <div class="sum-cell"><div class="lbl">진행 중 주문</div><div class="val">${inProg}<small> 건</small></div></div>
-    <div class="sum-cell ${low?'alert':''}"><div class="lbl">부족 경고 품목</div><div class="val">${low}<small> 개</small></div></div>
+  const cardTools = currentView==='items' ? `
     <button class="sum-filter ${ui.chinaOnly?'on':''}" onclick="toggleChinaOnly()">📦 중국 재고 체크${ui.chinaOnly?' · 해제':''}</button>
     <div class="view-toggle">
       <span class="vt-lbl">보기</span>
       <button class="${ui.view==='lg'?'on':''}" onclick="setView('lg')" title="크게 (한 줄에 적게)">크게</button>
       <button class="${ui.view==='md'?'on':''}" onclick="setView('md')" title="보통">보통</button>
       <button class="${ui.view==='sm'?'on':''}" onclick="setView('sm')" title="작게 (한 줄에 많이)">작게</button>
-    </div>`;
+    </div>` : '';
+  $('summary').innerHTML=`
+    <div class="sum-cell"><div class="lbl">진행 중 주문</div><div class="val">${inProg}<small> 건</small></div></div>
+    <div class="sum-cell ${low?'alert':''}"><div class="lbl">부족 경고 품목</div><div class="val">${low}<small> 개</small></div></div>
+    ${cardTools}`;
 }
 function setView(v){ ui.view=v; try{localStorage.setItem('pkg_view',v)}catch(e){} render(); }
 function toggleChinaOnly(){ ui.chinaOnly=!ui.chinaOnly; if(currentView!=='items')switchView('items'); else render(); }

@@ -104,6 +104,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .badge.draft{background:#6b4fa1;color:#fff}
 .badge.disc{background:#4a4a48;color:#fff}
 .ic-info{padding:11px 14px 13px}
+.ic-mid{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;letter-spacing:.06em;color:#c0392b}
 .ic-code{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
 .ic-code .oc{font-size:10.5px;font-weight:400}
 .ic-name{font-weight:700;font-size:15px;margin:1px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -313,8 +314,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   <div class="modal pad">
     <h2 id="itemModalTitle">품목 등록</h2>
     <div class="f2">
-      <div class="f"><label>관리코드</label><input id="i_code" placeholder="G-BOX-02"></div>
-      <div class="f"><label>한국명</label><input id="i_nameKo" placeholder="범용 박스 2호 (V2)"></div>
+      <div class="f"><label>한국명 <span style="color:#c0392b">*필수</span></label><input id="i_nameKo" placeholder="범용 박스 2호 (V2)"></div>
+      <div class="f"><label>관리코드 (선택) · ID는 저장 시 자동부여</label><input id="i_code" placeholder="G-BOX-02 (비워도 됨)"></div>
     </div>
     <div class="f3">
       <div class="f"><label>유형</label>
@@ -488,6 +489,7 @@ const $=id=>document.getElementById(id);
 const ESC_MAP={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>ESC_MAP[c]);
 const fmt=n=>(n||0).toLocaleString('ko-KR');
+const mid=i=>'#'+String(i.id||0).padStart(4,'0');  // 마스터 ID (DB id 4자리, 자동부여)
 const today=()=>new Date().toISOString().slice(0,10);
 function addDays(dateStr,d){const dt=new Date(dateStr);dt.setDate(dt.getDate()+d);return dt.toISOString().slice(0,10);}
 function ddays(eta){if(!eta)return null;return Math.round((new Date(eta)-new Date(today()))/86400000);}
@@ -586,13 +588,13 @@ function renderItems(){
         <div class="badge-float">${statusBadge(i)}</div>
       </div>
       <div class="ic-info">
-        <div class="ic-code"><span>${esc(i.code)} <span class="type-inline">${esc(i.type)}</span></span><span class="oc">발주 ${oc}회</span></div>
+        <div class="ic-mid">${mid(i)}</div>
+        <div class="ic-code"><span>${i.code?esc(i.code)+' ':''}<span class="type-inline">${esc(i.type)}</span></span><span class="oc">발주 ${oc}회</span></div>
         <div class="ic-name">${esc(i.nameKo)}</div>
         <div class="ic-alias">${i.alias?`별칭 <b>${esc(i.alias)}</b>`:''}</div>
-        <div class="stk-line">총 보유 <b>${fmt(tot)}</b><span>/ 안전 ${fmt(i.safety)}</span></div>
+        <div class="stk-line">총 보유 <b>${fmt(tot)}</b></div>
         <div class="stk-split">
           <div class="${i.stock.china?'hot':''}">중국${se(i,'china')}</div>
-          <div>포워딩${se(i,'forwarder')}</div>
           <div>국내${se(i,'korea')}</div>
         </div>
         <div class="card-actions">
@@ -626,7 +628,7 @@ function renderDetail(id){
       <button class="cam" onclick="pickPhoto(${i.id},'photo')">${i.photo?'사진 변경':'사진 추가'}</button>
     </div>
     <div class="dt-body">
-      <div class="dt-code">${esc(i.code)} <span style="color:#aaa">·</span> ${esc(i.cat||'')} ${statusBadge(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
+      <div class="dt-code"><span style="color:#c0392b;font-weight:700">${mid(i)}</span> ${i.code?esc(i.code)+' ':''}${i.cat?`<span style="color:#aaa">·</span> ${esc(i.cat)}`:''} ${statusBadge(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
       <div class="dt-name">${esc(i.nameKo)}</div>
       <div class="dt-sub">${esc(i.nameEn||'')}</div>
       <div class="dt-cn">中 ${esc(i.nameCn||'중문명 미입력')}</div>
@@ -937,7 +939,7 @@ async function saveItem(){
     nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(), status:$('i_status').value,
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
-  if(!d.code||!d.nameKo){toast('관리코드와 한국명은 필수입니다');return;}
+  if(!d.nameKo){toast('한국명은 필수입니다');return;}
   try{
     if(editingItemId){ const it=state.items.find(x=>x.id===editingItemId); Object.assign(it,d); await dbUpdateItem(it); }
     else{ d.photo=null; d.sheet=null; d.id=await dbInsertItem(d); state.items.push(d); }

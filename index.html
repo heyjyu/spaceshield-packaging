@@ -106,6 +106,14 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .stk-split div b{display:block;font-family:'IBM Plex Mono';font-size:12.5px;color:var(--ink);font-weight:600}
 .stk-split div+div{border-left:1px solid var(--line)}
 .stk-split div.hot{background:var(--tag-soft)}
+/* 카드 액션 버튼 */
+.card-actions{display:flex;gap:5px;margin-top:10px;align-items:stretch}
+.card-actions .ca{flex:0 0 auto;width:33px;height:31px;border:1px solid var(--line);background:var(--paper);border-radius:8px;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+.card-actions .ca:hover{background:#fff;border-color:var(--line-strong)}
+.card-actions .ca.off{opacity:.34}
+.card-actions .ca.off:hover{opacity:.7}
+.card-actions .ca.order{flex:1;width:auto;font-size:12.5px;font-weight:700;gap:3px;background:var(--tag-soft);border-color:#ecd9a0;color:#8a6400;white-space:nowrap}
+.card-actions .ca.order:hover{background:var(--tag);border-color:var(--tag);color:var(--ink)}
 .stk-split b.editable{cursor:text;text-decoration:underline dotted var(--line-strong);text-underline-offset:2px}
 .stk-split b.editable:hover{color:var(--blue)}
 .stk-split .stk-edit{font-size:12.5px;padding:0 2px;border-radius:4px}
@@ -145,7 +153,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .sheet-btns{display:flex;flex-direction:column;gap:5px}
 .sheet-btns button{border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:5px 10px;font-size:11.5px;white-space:nowrap}
 .sheet-btns button.gold{background:var(--tag);border-color:var(--tag);font-weight:700}
-.asset-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.asset-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
 .asset-tile{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:13px 6px 11px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;transition:box-shadow .12s,border-color .12s,background .12s}
 .asset-tile:hover{background:#fff;border-color:var(--line-strong);box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .asset-tile .ic{font-size:21px;line-height:1}
@@ -300,7 +308,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     </div>
     <div class="f3">
       <div class="f"><label>유형</label>
-        <select id="i_type"><option>비닐</option><option>박스·지류</option><option>스티커</option><option>기타</option></select>
+        <select id="i_type"><option>비닐</option><option>박스·지류</option><option>부자재</option><option>스티커</option><option>기타</option></select>
       </div>
       <div class="f"><label>카테고리 (NAS 분류)</label><input id="i_cat" placeholder="G BOX / C OPP / Armor Flex"></div>
       <div class="f"><label>별칭 (물류팀 은어)</label><input id="i_alias" placeholder="예: 반달"></div>
@@ -319,6 +327,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
       <div class="f"><label>국내 재고</label><input id="i_sKr" type="number" value="0"></div>
     </div>
     <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
+    <div class="f"><label>구매링크 URL</label><input id="i_buy" placeholder="https://... (재주문/구매 페이지)"></div>
     <div class="f"><label>NAS 전체 서버 경로</label><input id="i_nas" placeholder="\\NAS\SpaceShield\G STK\먼지제거스티커\"></div>
     <div class="f"><label>FLOW 기획서 URL</label><input id="i_flow" placeholder="https://..."></div>
     <div class="f"><label>메모</label><textarea id="i_memo" placeholder="거래처명, 담당자 위챗, 특이사항 등"></textarea></div>
@@ -373,7 +382,7 @@ const STAGES = [
   {id:'forwarder',name:'포워딩 보관',       cls:'c3'},
   {id:'arrived',  name:'국내 입고완료',     cls:'c4'},
 ];
-const TYPES=['비닐','박스·지류','스티커','기타'];
+const TYPES=['비닐','박스·지류','부자재','스티커','기타'];
 
 /* ───────── Supabase (publishable 키 — 공개 안전, RLS로 쓰기 차단) ───────── */
 const SB_URL='https://tnuzqrqxptxrfozzjjek.supabase.co';
@@ -388,8 +397,8 @@ let ui={q:'', type:'all', sort:'orders'};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', photo:i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', photo:i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -548,7 +557,6 @@ function renderItems(){
       <div class="ph">
         ${photo}
         <div class="badge-float">${statusBadge(i)}</div>
-        <button class="cam" onclick="event.stopPropagation();pickPhoto(${i.id},'photo')">${i.photo?'사진 변경':'사진 추가'}</button>
       </div>
       <div class="ic-info">
         <div class="ic-code"><span>${esc(i.code)} <span class="type-inline">${esc(i.type)}</span></span><span class="oc">발주 ${oc}회</span></div>
@@ -559,6 +567,13 @@ function renderItems(){
           <div class="${i.stock.china?'hot':''}">중국${se(i,'china')}</div>
           <div>포워딩${se(i,'forwarder')}</div>
           <div>국내${se(i,'korea')}</div>
+        </div>
+        <div class="card-actions">
+          <button class="ca ${i.buyUrl?'':'off'}" title="구매링크${i.buyUrl?' 열기':' (미등록)'}" onclick="event.stopPropagation();openBuyUrl(${i.id})">🔗</button>
+          <button class="ca ${i.sheet?'':'off'}" title="작업지시서${i.sheet?' 이미지 복사':' (등록)'}" onclick="event.stopPropagation();${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">📄</button>
+          <button class="ca ${i.nasPath?'':'off'}" title="NAS 경로${i.nasPath?' 복사':' (미등록)'}" onclick="event.stopPropagation();copyNasPath(${i.id})">📁</button>
+          <button class="ca ${i.flowUrl?'':'off'}" title="FLOW 기획서${i.flowUrl?' URL 복사':' (미등록)'}" onclick="event.stopPropagation();copyFlowUrl(${i.id})">🟣</button>
+          <button class="ca order" title="발주 요청" onclick="event.stopPropagation();openOrderModal(${i.id})">🧾 발주</button>
         </div>
       </div>
     </div>`;
@@ -602,6 +617,10 @@ function renderDetail(id){
         ${i.memo?`<span style="grid-column:1/3">메모: ${esc(i.memo)}</span>`:''}
       </div>
       <div class="asset-row">
+        <button class="asset-tile ${i.buyUrl?'set':'empty'}" onclick="openBuyUrl(${i.id})">
+          <div class="ic">🔗</div><div class="lb">구매링크</div>
+          <div class="cap">${i.buyUrl?'클릭해 열기':'미등록'}</div>
+        </button>
         <button class="asset-tile ${i.sheet?'set':'empty'}" onclick="${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">
           <div class="ic">📄</div><div class="lb">작업지시서</div>
           <div class="cap">${i.sheet?'이미지 복사':'등록 필요'}</div>
@@ -825,6 +844,11 @@ function copyFlowUrl(itemId){
   if(!i.flowUrl){toast('FLOW 기획서 URL이 미등록입니다 — [품목 정보 수정]에서 입력하세요');return;}
   copyText(i.flowUrl,'FLOW 기획서 URL이 복사되었습니다');
 }
+function openBuyUrl(itemId){   // 링크가 있으면 새 탭으로 바로 열기
+  const i=state.items.find(x=>x.id===itemId); if(!i)return;
+  if(!i.buyUrl){toast('구매링크가 미등록입니다 — [품목 정보 수정]에서 입력하세요');return;}
+  window.open(i.buyUrl,'_blank','noopener');
+}
 
 /* ───────── 재고 인라인 수정 (상세카드, 로그인 시) ───────── */
 let stockEditing=false;
@@ -870,7 +894,7 @@ function openItemModal(id){
   $('i_moq').value=i?i.moq:''; $('i_lead').value=i?i.lead:'';
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
   $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
-  $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:'';
+  $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:'';
   closeModal('detailOverlay');
   $('itemOverlay').classList.add('on');
   markClean('itemOverlay');
@@ -883,7 +907,7 @@ async function saveItem(){
     spec:$('i_spec').value.trim(), price:Number($('i_price').value)||0,
     moq:Number($('i_moq').value)||0, lead:Number($('i_lead').value)||14,
     safety:Number($('i_safety').value)||0, memo:$('i_memo').value.trim(),
-    nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(),
+    nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(),
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
   if(!d.code||!d.nameKo){toast('관리코드와 한국명은 필수입니다');return;}
@@ -934,7 +958,7 @@ async function saveOrder(){
 function closeModal(id){$(id).classList.remove('on');}
 
 /* ── 폼 미저장 경고 ── */
-const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_nas','i_flow'];
+const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_memo','i_buy','i_nas','i_flow'];
 const ORDER_FIELDS=['o_item','o_qty','o_price','o_by','o_memo'];
 let formSnap={};
 function snapForm(fields){return fields.map(id=>$(id).value).join('');}

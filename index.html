@@ -114,6 +114,14 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .badge.disc{background:#4a4a48;color:#fff}
 .badge.req{background:#e67e22;color:#fff}
 .badge.dsgn{background:#f0b429;color:#3a2e00}
+.badge.set{background:#fff;border:1px dashed var(--line-strong);color:var(--muted);font-weight:600}
+.badge-btn{border:none;background:none;padding:0;cursor:pointer;font:inherit;line-height:0}
+.badge-btn:hover{filter:brightness(1.05)}
+.status-menu{position:fixed;z-index:200;background:#fff;border:1px solid var(--line-strong);border-radius:11px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:5px;display:none;min-width:200px}
+.status-menu.on{display:block}
+.status-menu button{display:block;width:100%;text-align:left;border:none;background:none;padding:8px 12px;font-size:13px;border-radius:7px;font-family:inherit;color:#333;white-space:nowrap}
+.status-menu button:hover{background:var(--paper)}
+.status-menu button.on{font-weight:700;background:var(--tag-soft)}
 .ic-info{padding:11px 14px 13px}
 .ic-mid{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;letter-spacing:.06em;color:#c0392b}
 .ic-code{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
@@ -404,6 +412,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   </div>
 </div>
 
+<div id="statusMenu" class="status-menu"></div>
 <div id="toast"></div>
 
 <script>
@@ -533,6 +542,35 @@ function statusBadge(i){
   if(activeOrders(i.id).length)return '<span class="badge prog">발주 진행중</span>';
   return '';
 }
+/* 배지를 버튼처럼 — 클릭하면 상태 바로 지정(로그인 시) */
+function badgeBtn(i){
+  const b=statusBadge(i);
+  if(!isAuthed())return b;
+  return `<button class="badge-btn" onclick="openStatusMenu(${i.id},event)" title="상태 변경">${b||'<span class="badge set">＋ 상태</span>'}</button>`;
+}
+function openStatusMenu(id,ev){
+  ev.stopPropagation();
+  if(!isAuthed()){requireAuth();return;}
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  const opts=[['','자동 — 재고/발주 자동 표시'],['재고부족','🔴 재고부족'],['발주요청','🟠 발주요청'],['제작진행','🔵 제작진행'],['시안','🟣 시안'],['단종','⚫ 단종'],['디자인변경','⚠️ 디자인변경 재발주']];
+  const m=$('statusMenu');
+  m.innerHTML=opts.map(([v,l])=>`<button class="${it.status===v?'on':''}" onclick="setStatus(${id},'${v}')">${l}</button>`).join('');
+  m.classList.add('on');
+  const r=ev.currentTarget.getBoundingClientRect(), mw=210, mh=m.offsetHeight||300;
+  let left=Math.min(r.left, window.innerWidth-mw-8), top=r.bottom+4;
+  if(top+mh>window.innerHeight-8) top=Math.max(8, r.top-mh-4);
+  m.style.left=Math.max(8,left)+'px'; m.style.top=top+'px';
+}
+function closeStatusMenu(){$('statusMenu').classList.remove('on');}
+async function setStatus(id,s){
+  closeStatusMenu();
+  if(!isAuthed()){requireAuth();return;}
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  it.status=s; render();
+  try{ await sb.from('pkg_items').update({status:s}).eq('id',id); toast('상태: '+(s||'자동')); }
+  catch(e){ toast('상태 저장 실패: '+e.message); loadAll(); }
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#statusMenu')&&!e.target.closest('.badge-btn'))closeStatusMenu(); });
 
 /* ───────── 렌더 ───────── */
 function render(){renderSummary();renderTypeFilters();renderItems();renderKanban();if(detailItemId)renderDetail(detailItemId);}
@@ -610,7 +648,7 @@ function renderItems(){
     <div class="item-card" data-item="${i.id}" tabindex="0" onclick="openDetail(${i.id})" onkeydown="if(event.key==='Enter')openDetail(${i.id})">
       <div class="ph">
         ${photo}
-        <div class="badge-float">${statusBadge(i)}</div>
+        <div class="badge-float">${badgeBtn(i)}</div>
       </div>
       <div class="ic-info">
         <div class="ic-mid">${mid(i)}</div>
@@ -684,7 +722,7 @@ function renderDetail(id){
       ${dph.length?`<button class="cam del" onclick="deletePhoto(${i.id})">현재 사진 삭제</button>`:''}
     </div>
     <div class="dt-body">
-      <div class="dt-code"><span style="color:#c0392b;font-weight:700">${mid(i)}</span> ${i.code?esc(i.code)+' ':''}${i.cat?`<span style="color:#aaa">·</span> ${esc(i.cat)}`:''} ${statusBadge(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
+      <div class="dt-code"><span style="color:#c0392b;font-weight:700">${mid(i)}</span> ${i.code?esc(i.code)+' ':''}${i.cat?`<span style="color:#aaa">·</span> ${esc(i.cat)}`:''} ${badgeBtn(i)} ${i.alias?`<span class="badge" style="background:var(--tag-soft);color:#8a6400">별칭 ${esc(i.alias)}</span>`:''}</div>
       <div class="dt-name">${esc(i.nameKo)}</div>
       <div class="dt-sub">${esc(i.nameEn||'')}</div>
       <div class="dt-cn">中 ${esc(i.nameCn||'중문명 미입력')}</div>

@@ -74,6 +74,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .sum-filter{align-self:center;margin-left:18px;border:1.5px solid var(--line-strong);background:#fff;color:#333;border-radius:9px;padding:9px 15px;font-size:13.5px;font-weight:600;font-family:inherit;white-space:nowrap;flex-shrink:0}
 .sum-filter:hover{border-color:var(--ink)}
 .sum-filter.on{background:var(--tag);border-color:var(--tag);color:var(--ink)}
+.sum-status{align-self:center;margin-left:10px;border:1.5px solid var(--line-strong);background:#fff;color:#333;border-radius:9px;padding:9px 12px;font-size:13.5px;font-weight:600;font-family:inherit;flex-shrink:0;cursor:pointer}
+.sum-status:hover{border-color:var(--ink)}
+.sum-status.on{background:var(--tag);border-color:var(--tag);color:var(--ink)}
 .view-toggle{margin-left:auto;display:flex;align-items:center;gap:3px;padding:0 18px;flex-shrink:0}
 .view-toggle .vt-lbl{font-size:11px;color:var(--muted);margin-right:4px}
 .view-toggle button{border:1px solid var(--line-strong);background:#fff;color:#555;font-size:12.5px;padding:5px 11px;border-radius:7px;font-family:inherit}
@@ -721,6 +724,10 @@ function renderSummary(){
   const low=state.items.filter(i=>totalStock(i)<i.safety).length;
   const cardTools = currentView==='items' ? `
     <button class="sum-filter ${ui.chinaOnly?'on':''}" onclick="toggleChinaOnly()">📦 중국 재고 체크${ui.chinaOnly?' · 해제':''}</button>
+    <select class="sum-status ${ui.status!=='all'?'on':''}" onchange="ui.status=this.value;render()">
+      <option value="all" ${ui.status==='all'?'selected':''}>🏷 뱃지: 전체</option>
+      ${STATUSES.map(s=>`<option value="${s.v}" ${ui.status===s.v?'selected':''}>${s.l}</option>`).join('')}
+    </select>
     <div class="view-toggle">
       <span class="vt-lbl">보기</span>
       <button class="${ui.view==='lg'?'on':''}" onclick="setView('lg')" title="크게 (한 줄에 적게)">크게</button>

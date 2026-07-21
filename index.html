@@ -561,10 +561,7 @@ function statusBadge(i){
     case '발주요청':  return '<span class="badge req">발주 요청</span>';
     case '제작진행':  return '<span class="badge prog">제작 진행</span>';
   }
-  // 자동
-  if(totalStock(i)<i.safety)return '<span class="badge low">재고 부족</span>';
-  if(activeOrders(i.id).length)return '<span class="badge prog">발주 진행중</span>';
-  return '';
+  return '';   // (공란) = 배지 없음 (직접 고른 값만 표시 — 메뉴와 항상 일치)
 }
 /* 배지를 버튼처럼 — 클릭하면 상태 바로 지정(로그인 시) */
 function badgeBtn(i){

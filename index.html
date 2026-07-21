@@ -602,7 +602,7 @@ function renderItems(){
           <button class="ca ${i.sheet?'':'off'}" title="작업지시서${i.sheet?' 이미지 복사':' (등록)'}" onclick="event.stopPropagation();${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">📄</button>
           <button class="ca ${i.nasPath?'':'off'}" title="NAS 경로${i.nasPath?' 복사':' (미등록)'}" onclick="event.stopPropagation();copyNasPath(${i.id})">📁</button>
           <button class="ca ${i.flowUrl?'':'off'}" title="FLOW 기획서${i.flowUrl?' URL 복사':' (미등록)'}" onclick="event.stopPropagation();copyFlowUrl(${i.id})">🟣</button>
-          <button class="ca order" title="발주 요청" onclick="event.stopPropagation();openOrderModal(${i.id})">🧾 발주</button>
+          <button class="ca order" title="발주 요청 — 한 번 누르면 바로 접수(수량은 나중에 조정)" onclick="event.stopPropagation();quickOrder(${i.id})">🧾 발주</button>
         </div>
       </div>
     </div>`;
@@ -966,6 +966,22 @@ function prefillOrder(){
   $('o_lastinfo').textContent=last
     ?`직전 주문: ${last.orderDate||last.created} · ${fmt(last.qty)}개 · ¥${last.price||'-'}`
     :'첫 주문 품목입니다 (수량은 MOQ 기준)';
+}
+/* 물류팀 원클릭 발주 — 폼 없이 바로 [발주 요청] 칸반에 카드 생성 */
+async function quickOrder(itemId){
+  if(!requireAuth())return;
+  const i=state.items.find(x=>x.id===itemId); if(!i)return;
+  const last=lastConfirmedOrder(itemId);
+  const o={ itemId, stage:'request',
+    qty:(last?last.qty:i.moq)||0, price:(last&&last.price)||i.price||0,
+    by:(session&&session.user&&session.user.email)||'물류팀', memo:'',
+    orderDate:'', eta:'', created:today() };
+  try{
+    await dbInsertOrder(o);
+    state.orders.unshift(o);
+    render();
+    toast(`[${i.code||i.nameKo}] 발주 요청이 들어왔습니다 — [주문 칸반]에서 확인`);
+  }catch(e){ toast('요청 실패: '+e.message); }
 }
 async function saveOrder(){
   const itemId=Number($('o_item').value);

@@ -229,6 +229,10 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .kcol.c1 h3{color:var(--blue)}
 .kcol.c4 h3{color:var(--ok)}
 .ocard{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.ocard.draggable{cursor:grab}
+.ocard.draggable:active{cursor:grabbing}
+.ocard.dragging{opacity:.45}
+.kcol.drop-hover{background:#e4eefb;border-color:var(--blue);border-style:dashed}
 .ocard .oc-code{font-family:'IBM Plex Mono';font-size:11.5px;font-weight:600;color:var(--muted)}
 .ocard .oc-name{font-weight:700;font-size:13.5px;margin:2px 0 6px}
 .ocard .oc-qty{font-family:'IBM Plex Mono';font-size:17px;font-weight:600}
@@ -895,7 +899,8 @@ function renderKanban(){
   const b=$('kanbanBoard');
   b.innerHTML=STAGES.map((s,si)=>{
     const list=state.orders.filter(o=>o.stage===s.id);
-    return `<div class="kcol ${s.cls}">
+    const drag=isAuthed();
+    return `<div class="kcol ${s.cls}" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,${si})">
       <h3>${s.name}<span class="cnt">${list.length}</span></h3>
       ${list.map(o=>{
         const it=itemOf(o)||{code:'?',nameKo:'삭제된 품목'};
@@ -908,7 +913,7 @@ function renderKanban(){
         const alias=it.alias?` <span style="color:#8a6400">'${esc(it.alias)}'</span>`:'';
         const prev=si>0?`<button onclick="moveOrder(${o.id},-1)">← 이전</button>`:'';
         const next=si<STAGES.length-1?`<button class="next" onclick="moveOrder(${o.id},1)">${nextLabel(si)} →</button>`:`<button onclick="delOrder(${o.id})">기록 삭제</button>`;
-        return `<div class="ocard">
+        return `<div class="ocard${drag?' draggable':''}" draggable="${drag?'true':'false'}" ondragstart="onCardDragStart(event,${o.id})" ondragend="onCardDragEnd(event)">
           <div class="oc-code">${esc(it.code)}</div>
           <div class="oc-name">${esc(it.nameKo)}${alias}</div>
           <div class="oc-qty">${fmt(o.qty)}<small> 개</small>${o.price?`<small style="margin-left:6px">¥${o.price} · ¥${fmt(Math.round(o.qty*o.price))}</small>`:''} ${ddHtml}</div>
@@ -922,34 +927,49 @@ function renderKanban(){
   }).join('');
 }
 function nextLabel(si){return ['발주 확정','제작완료 입고','포워딩 출고','국내 입고'][si]||'다음';}
+/* 칸반 드래그 이동 */
+let dragOrderId=null;
+function onCardDragStart(e,id){ dragOrderId=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',String(id));}catch(_){} e.currentTarget.classList.add('dragging'); }
+function onCardDragEnd(e){ e.currentTarget.classList.remove('dragging'); dragOrderId=null; document.querySelectorAll('.kcol.drop-hover').forEach(k=>k.classList.remove('drop-hover')); }
+function onColDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; e.currentTarget.classList.add('drop-hover'); }
+function onColDragLeave(e){ if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('drop-hover'); }
+function onColDrop(e,colIdx){ e.preventDefault(); e.currentTarget.classList.remove('drop-hover'); const id=dragOrderId||Number(e.dataTransfer.getData('text/plain')); dragOrderId=null; if(id)moveOrderTo(id,colIdx); }
 
-/* ───────── 단계 이동 (재고 자동 반영) ───────── */
-async function moveOrder(oid,dir){
-  if(!requireAuth())return;
+/* ───────── 단계 이동 (재고 자동 반영, 다단계·드래그 지원) ───────── */
+function moveOrder(oid,dir){                 // 버튼용: 현재에서 ±1
   const o=state.orders.find(x=>x.id===oid); if(!o)return;
   const si=STAGES.findIndex(s=>s.id===o.stage);
-  const ni=si+dir;
-  if(ni<0||ni>=STAGES.length)return;
+  moveOrderTo(oid, si+dir);
+}
+async function moveOrderTo(oid,targetIdx){   // 임의 단계로(드래그): 단계별 재고 반영
+  if(!requireAuth())return;
+  const o=state.orders.find(x=>x.id===oid); if(!o)return;
+  let si=STAGES.findIndex(s=>s.id===o.stage);
+  if(targetIdx<0||targetIdx>=STAGES.length||targetIdx===si)return;
   const it=itemOf(o);
-  const from=o.stage, to=STAGES[ni].id;
   let stockChanged=false;
-  if(dir>0){
-    if(from==='request'&&to==='ordered'){ o.orderDate=o.orderDate||today(); o.eta=o.eta||addDays(o.orderDate,(it&&it.lead)||14); }
-    if(from==='ordered'&&to==='chinaWh'&&it){ it.stock.china+=o.qty; stockChanged=true; }
-    if(from==='chinaWh'&&to==='forwarder'&&it){ it.stock.china-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
-    if(from==='forwarder'&&to==='arrived'&&it){ it.stock.forwarder-=o.qty; it.stock.korea+=o.qty; stockChanged=true; }
-  } else {
-    if(from==='ordered'&&to==='request'){ o.orderDate=''; o.eta=''; }  // 요청으로 되돌리면 발주일·납기 초기화(낡은 날짜 재사용 방지)
-    if(from==='chinaWh'&&to==='ordered'&&it){ it.stock.china-=o.qty; stockChanged=true; }
-    if(from==='forwarder'&&to==='chinaWh'&&it){ it.stock.forwarder-=o.qty; it.stock.china+=o.qty; stockChanged=true; }
-    if(from==='arrived'&&to==='forwarder'&&it){ it.stock.korea-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
+  const dir=targetIdx>si?1:-1;
+  while(si!==targetIdx){
+    const from=STAGES[si].id, to=STAGES[si+dir].id;
+    if(dir>0){
+      if(from==='request'&&to==='ordered'){ o.orderDate=o.orderDate||today(); o.eta=o.eta||addDays(o.orderDate,(it&&it.lead)||14); }
+      if(from==='ordered'&&to==='chinaWh'&&it){ it.stock.china+=o.qty; stockChanged=true; }
+      if(from==='chinaWh'&&to==='forwarder'&&it){ it.stock.china-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
+      if(from==='forwarder'&&to==='arrived'&&it){ it.stock.forwarder-=o.qty; it.stock.korea+=o.qty; stockChanged=true; }
+    } else {
+      if(from==='ordered'&&to==='request'){ o.orderDate=''; o.eta=''; }
+      if(from==='chinaWh'&&to==='ordered'&&it){ it.stock.china-=o.qty; stockChanged=true; }
+      if(from==='forwarder'&&to==='chinaWh'&&it){ it.stock.forwarder-=o.qty; it.stock.china+=o.qty; stockChanged=true; }
+      if(from==='arrived'&&to==='forwarder'&&it){ it.stock.korea-=o.qty; it.stock.forwarder+=o.qty; stockChanged=true; }
+    }
+    si+=dir;
   }
-  o.stage=to;
+  o.stage=STAGES[targetIdx].id;
   render();
   try{
     await dbUpdateOrder(o);
     if(stockChanged&&it) await dbUpdateItemStock(it);
-    toast(`[${(it&&it.code)||''}] ${STAGES[ni].name} 단계로 이동`);
+    toast(`[${(it&&it.code)||''}] ${STAGES[targetIdx].name} 단계로 이동`);
   }catch(e){ toast('이동 저장 실패: '+e.message+' — 새로고침 후 재시도'); loadAll(); }
 }
 async function delOrder(oid){

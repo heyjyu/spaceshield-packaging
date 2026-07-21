@@ -41,7 +41,7 @@ header{background:var(--ink);color:#fff;padding:0 24px}
 
 /* ── 요약 ── */
 .summary{display:flex;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}
-.sum-cell{flex:1;padding:12px 22px;border-right:1px solid var(--line);min-width:140px}
+.sum-cell{padding:12px 22px;border-right:1px solid var(--line);min-width:150px}
 .sum-cell .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
 .sum-cell .val{font-family:'IBM Plex Mono';font-size:21px;font-weight:600;margin-top:2px}
 .sum-cell .val small{font-size:12px;color:var(--muted);font-weight:400}
@@ -327,7 +327,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
     </div>
     <div class="f3">
       <div class="f"><label>유형</label>
-        <select id="i_type"><option>비닐</option><option>박스·지류</option><option>부자재</option><option>스티커</option><option>기타</option></select>
+        <select id="i_type"><option>박스·지류</option><option>비닐</option><option>부자재</option><option>스티커</option><option>기타</option></select>
       </div>
       <div class="f"><label>카테고리 (NAS 분류)</label><input id="i_cat" placeholder="G BOX / C OPP / Armor Flex"></div>
       <div class="f"><label>별칭 (물류팀 은어)</label><input id="i_alias" placeholder="예: 반달"></div>
@@ -412,7 +412,7 @@ const STAGES = [
   {id:'forwarder',name:'포워딩 보관',       cls:'c3'},
   {id:'arrived',  name:'국내 입고완료',     cls:'c4'},
 ];
-const TYPES=['비닐','박스·지류','부자재','스티커','기타'];
+const TYPES=['박스·지류','비닐','부자재','스티커','기타'];
 
 /* ───────── Supabase (publishable 키 — 공개 안전, RLS로 쓰기 차단) ───────── */
 const SB_URL='https://tnuzqrqxptxrfozzjjek.supabase.co';
@@ -536,19 +536,13 @@ function render(){renderSummary();renderTypeFilters();renderItems();renderKanban
 
 function renderSummary(){
   if(!loaded){
-    $('summary').innerHTML=['중국창고 보관','포워딩 보관','국내 보유','진행 중 주문','부족 경고 품목']
+    $('summary').innerHTML=['진행 중 주문','부족 경고 품목']
       .map(l=>`<div class="sum-cell"><div class="lbl">${l}</div><div class="val"><span class="skel-bar"></span></div></div>`).join('');
     return;
   }
-  const tChina=state.items.reduce((s,i)=>s+i.stock.china,0);
-  const tFwd=state.items.reduce((s,i)=>s+i.stock.forwarder,0);
-  const tKr=state.items.reduce((s,i)=>s+i.stock.korea,0);
   const inProg=state.orders.filter(o=>o.stage!=='arrived').length;
   const low=state.items.filter(i=>totalStock(i)<i.safety).length;
   $('summary').innerHTML=`
-    <div class="sum-cell"><div class="lbl">중국창고 보관</div><div class="val">${fmt(tChina)}<small> 개</small></div></div>
-    <div class="sum-cell"><div class="lbl">포워딩 보관</div><div class="val">${fmt(tFwd)}<small> 개</small></div></div>
-    <div class="sum-cell"><div class="lbl">국내 보유</div><div class="val">${fmt(tKr)}<small> 개</small></div></div>
     <div class="sum-cell"><div class="lbl">진행 중 주문</div><div class="val">${inProg}<small> 건</small></div></div>
     <div class="sum-cell ${low?'alert':''}"><div class="lbl">부족 경고 품목</div><div class="val">${low}<small> 개</small></div></div>
     <div class="view-toggle">

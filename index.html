@@ -52,7 +52,10 @@ header{background:var(--ink);color:#fff;padding:0 24px}
 aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .sb-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
 .sb-box h4{font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
-#q{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:inherit}
+.search-wrap{position:relative}
+#q{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:9px 32px 9px 11px;font-size:13.5px;font-family:inherit}
+#qClear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:none;background:var(--line);color:#555;border-radius:50%;font-size:12px;line-height:1;align-items:center;justify-content:center;cursor:pointer;display:none}
+#qClear:hover{background:var(--line-strong);color:var(--ink)}
 .f-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;border-radius:7px;padding:7px 9px;font-size:13px;color:#444;text-align:left}
 .f-btn:hover{background:var(--paper)}
 .f-btn.on{background:var(--ink);color:#fff;font-weight:600}
@@ -262,6 +265,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .m-btns .save{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600}
 
 #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 20px;border-radius:8px;font-size:13.5px;display:none;z-index:99;max-width:90vw}
+#toast.err{background:var(--warn)}
+#toast .toast-x{margin-left:12px;cursor:pointer;opacity:.85;font-weight:700}
+#toast .toast-x:hover{opacity:1}
 .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:13px}
 /* 로딩 스켈레톤 */
 @keyframes shimmer{0%{background-position:-450px 0}100%{background-position:450px 0}}
@@ -286,6 +292,16 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   .hd-btn{padding:6px 10px;font-size:12px}
   .hd-sp{display:none}
   .tab{padding:9px 12px 11px;font-size:13px}
+  /* 모바일: 폼·모달·타일·칸반 */
+  .wrap{padding:14px 12px}
+  .f2,.f3{grid-template-columns:1fr}
+  .modal.pad{padding:18px 15px}
+  .overlay{padding:16px 10px}
+  .asset-row{grid-template-columns:repeat(2,1fr)}
+  .kanban{grid-template-columns:repeat(5,minmax(0,80vw));gap:10px}
+  .dt-meta{grid-template-columns:1fr}
+  .dt-meta span[style*="grid-column"]{grid-column:1!important}
+  .grid,.grid.v-lg,.grid.v-sm{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -312,7 +328,10 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
   <aside id="sidebar">
     <div class="sb-box">
       <h4>검색</h4>
-      <input id="q" placeholder="2호, 반달, 코드, 별칭…" oninput="ui.q=this.value;renderItems()">
+      <div class="search-wrap">
+        <input id="q" placeholder="2호, 반달, 코드, 별칭…" oninput="onSearchInput(this.value)">
+        <button id="qClear" onclick="clearSearch()" title="지우기" style="display:none">✕</button>
+      </div>
     </div>
     <div class="sb-box">
       <h4>유형</h4>
@@ -551,7 +570,22 @@ const SVG_NEXT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const today=()=>new Date().toISOString().slice(0,10);
 function addDays(dateStr,d){const dt=new Date(dateStr);dt.setDate(dt.getDate()+d);return dt.toISOString().slice(0,10);}
 function ddays(eta){if(!eta)return null;return Math.round((new Date(eta)-new Date(today()))/86400000);}
-function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2800);}
+function toast(msg,opts){
+  opts=opts||{};
+  const isErr=opts.error||/실패|오류/.test(msg);
+  const t=$('toast');
+  t.innerHTML=esc(msg)+((isErr||opts.sticky)?' <span class="toast-x" onclick="hideToast()">✕</span>':'');
+  t.className=isErr?'err':'';
+  t.style.display='block';
+  clearTimeout(t._h);
+  if(!opts.sticky) t._h=setTimeout(()=>{t.style.display='none';},isErr?7000:2800);
+}
+function hideToast(){const t=$('toast');clearTimeout(t._h);t.style.display='none';}
+function setBtnBusy(sel,busy,busyText){
+  const b=document.querySelector(sel); if(!b)return;
+  if(busy){ if(!b.dataset.txt)b.dataset.txt=b.textContent; b.textContent=busyText||'처리 중…'; b.disabled=true; b.style.opacity='.65'; b.style.cursor='wait'; }
+  else{ b.textContent=b.dataset.txt||b.textContent; delete b.dataset.txt; b.disabled=false; b.style.opacity=''; b.style.cursor=''; }
+}
 function copyText(txt,msg){
   navigator.clipboard.writeText(txt).then(()=>toast(msg||'복사되었습니다'),()=>{
     const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast(msg||'복사되었습니다');
@@ -627,6 +661,8 @@ function renderSummary(){
     ${cardTools}`;
 }
 function setView(v){ ui.view=v; try{localStorage.setItem('pkg_view',v)}catch(e){} render(); }
+function onSearchInput(v){ ui.q=v; $('qClear').style.display=v?'flex':'none'; renderItems(); }
+function clearSearch(){ ui.q=''; $('q').value=''; $('qClear').style.display='none'; $('q').focus(); renderItems(); }
 function toggleChinaOnly(){ ui.chinaOnly=!ui.chinaOnly; if(currentView!=='items')switchView('items'); else render(); }
 
 function renderTypeFilters(){
@@ -882,6 +918,7 @@ function onPhotoPicked(e){
     URL.revokeObjectURL(img.src);
     const it=state.items.find(x=>x.id===photoTarget.id);
     if(!it)return;
+    toast(field==='sheet'?'작업지시서 업로드 중…':'사진 업로드 중…',{sticky:true});
     try{
       const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',field==='sheet'?0.85:0.78));
       const path=`items/${it.id}/${field}_${Date.now()}.jpg`;
@@ -1118,11 +1155,13 @@ async function saveItem(){
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
   if(!d.nameKo){toast('한국명은 필수입니다');return;}
+  setBtnBusy('#itemOverlay .save',true,'저장 중…');
   try{
     if(editingItemId){ const it=state.items.find(x=>x.id===editingItemId); Object.assign(it,d); await dbUpdateItem(it); }
     else{ d.photo=null; d.sheet=null; d.id=await dbInsertItem(d); state.items.push(d); }
     closeModal('itemOverlay');render();toast('저장되었습니다');
   }catch(e){ toast('저장 실패: '+e.message); }
+  finally{ setBtnBusy('#itemOverlay .save',false); }
 }
 
 /* ───────── 발주 요청 ───────── */
@@ -1146,9 +1185,12 @@ function prefillOrder(){
     :'첫 주문 품목입니다 (수량은 MOQ 기준)';
 }
 /* 물류팀 원클릭 발주 — 폼 없이 바로 [발주 요청] 칸반에 카드 생성 */
+const quickOrderInFlight=new Set();
 async function quickOrder(itemId){
   if(!requireAuth())return;
+  if(quickOrderInFlight.has(itemId))return;   // 연타 중복 방지
   const i=state.items.find(x=>x.id===itemId); if(!i)return;
+  quickOrderInFlight.add(itemId);
   const last=lastConfirmedOrder(itemId);
   const o={ itemId, stage:'request',
     qty:(last?last.qty:i.moq)||0, price:(last&&last.price)||i.price||0,
@@ -1160,6 +1202,7 @@ async function quickOrder(itemId){
     render();
     toast(`[${i.code||i.nameKo}] 발주 요청이 들어왔습니다 — [주문 칸반]에서 확인`);
   }catch(e){ toast('요청 실패: '+e.message); }
+  finally{ setTimeout(()=>quickOrderInFlight.delete(itemId),900); }
 }
 async function saveOrder(){
   const itemId=Number($('o_item').value);
@@ -1169,6 +1212,7 @@ async function saveOrder(){
   const o={ itemId, stage:'request', qty, price,
     by:$('o_by').value.trim(), memo:$('o_memo').value.trim(),
     orderDate:'', eta:'', created:today() };
+  setBtnBusy('#orderOverlay .save',true,'올리는 중…');
   try{
     await dbInsertOrder(o);
     state.orders.unshift(o);
@@ -1176,6 +1220,7 @@ async function saveOrder(){
     switchView('kanban');
     toast('발주 요청이 올라갔습니다 — [발주 요청] 칸에서 확인하세요');
   }catch(e){ toast('요청 실패: '+e.message); }
+  finally{ setBtnBusy('#orderOverlay .save',false); }
 }
 
 function closeModal(id){$(id).classList.remove('on');}

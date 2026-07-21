@@ -68,6 +68,9 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .grid.v-lg{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
 .grid.v-sm{grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:12px}
 /* 보기 방식 토글 (요약바 우측) */
+.sum-filter{align-self:center;margin-left:18px;border:1.5px solid var(--line-strong);background:#fff;color:#333;border-radius:9px;padding:9px 15px;font-size:13.5px;font-weight:600;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.sum-filter:hover{border-color:var(--ink)}
+.sum-filter.on{background:var(--tag);border-color:var(--tag);color:var(--ink)}
 .view-toggle{margin-left:auto;display:flex;align-items:center;gap:3px;padding:0 18px;flex-shrink:0}
 .view-toggle .vt-lbl{font-size:11px;color:var(--muted);margin-right:4px}
 .view-toggle button{border:1px solid var(--line-strong);background:#fff;color:#555;font-size:12.5px;padding:5px 11px;border-radius:7px;font-family:inherit}
@@ -423,7 +426,7 @@ let session=null;
 
 let state = { items:[], orders:[] };
 let loaded=false;
-let ui={q:'', type:'all', sort:'orders', view:(()=>{try{return localStorage.getItem('pkg_view')||'md'}catch{return 'md'}})()};
+let ui={q:'', type:'all', sort:'orders', chinaOnly:false, view:(()=>{try{return localStorage.getItem('pkg_view')||'md'}catch{return 'md'}})()};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
@@ -545,6 +548,7 @@ function renderSummary(){
   $('summary').innerHTML=`
     <div class="sum-cell"><div class="lbl">진행 중 주문</div><div class="val">${inProg}<small> 건</small></div></div>
     <div class="sum-cell ${low?'alert':''}"><div class="lbl">부족 경고 품목</div><div class="val">${low}<small> 개</small></div></div>
+    <button class="sum-filter ${ui.chinaOnly?'on':''}" onclick="toggleChinaOnly()">📦 중국 재고 체크${ui.chinaOnly?' · 해제':''}</button>
     <div class="view-toggle">
       <span class="vt-lbl">보기</span>
       <button class="${ui.view==='lg'?'on':''}" onclick="setView('lg')" title="크게 (한 줄에 적게)">크게</button>
@@ -553,6 +557,7 @@ function renderSummary(){
     </div>`;
 }
 function setView(v){ ui.view=v; try{localStorage.setItem('pkg_view',v)}catch(e){} render(); }
+function toggleChinaOnly(){ ui.chinaOnly=!ui.chinaOnly; if(currentView!=='items')switchView('items'); else render(); }
 
 function renderTypeFilters(){
   const counts={all:state.items.length};
@@ -565,6 +570,7 @@ function renderTypeFilters(){
 function filteredItems(){
   let list=state.items.slice();
   if(ui.type!=='all')list=list.filter(i=>i.type===ui.type);
+  if(ui.chinaOnly)list=list.filter(i=>i.stock.china>0);
   const q=ui.q.trim().toLowerCase();
   if(q)list=list.filter(i=>
     [i.code,i.nameKo,i.nameEn,i.nameCn,i.alias,i.cat,i.spec].join(' ').toLowerCase().includes(q));
@@ -583,7 +589,7 @@ function renderItems(){
     return;
   }
   const list=filteredItems();
-  $('resultLine').textContent=`${list.length}개 품목${ui.sort==='orders'?' · 발주 많은 순':''}${ui.q?` · "${ui.q}" 검색`:''}`;
+  $('resultLine').textContent=`${list.length}개 품목${ui.chinaOnly?' · 중국 재고 있음':''}${ui.sort==='orders'?' · 발주 많은 순':''}${ui.q?` · "${ui.q}" 검색`:''}`;
   if(!list.length){g.innerHTML='<div class="empty">조건에 맞는 품목이 없습니다.</div>';return;}
   const authed=isAuthed();
   const se=(i,f)=>authed

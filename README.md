@@ -15,7 +15,7 @@
 
 ## 라이브
 
-- **https://heyjyu.github.io/spaceshield-packaging/**
+- **https://demian247.github.io/spaceshield-packaging/**
 
 ## 처음 켤 때 (1회)
 

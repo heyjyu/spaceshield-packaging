@@ -326,6 +326,10 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
         <option value="name">이름순</option>
       </select>
     </div>
+    <div class="sb-box">
+      <h4>상태</h4>
+      <div id="statusFilters"></div>
+    </div>
   </aside>
 
   <div class="content">
@@ -450,6 +454,7 @@ const STAGES = [
   {id:'arrived',  name:'국내 입고완료',     cls:'c4'},
 ];
 const TYPES=['박스·지류','비닐','부자재','스티커','기타'];
+const STATUSES=[{v:'재고부족',l:'재고부족'},{v:'발주요청',l:'발주요청'},{v:'제작진행',l:'제작진행'},{v:'',l:'(공란)'},{v:'시안',l:'시안'},{v:'단종',l:'단종'},{v:'디자인변경',l:'⚠️ 디자인변경'}];
 
 /* ───────── Supabase (publishable 키 — 공개 안전, RLS로 쓰기 차단) ───────── */
 const SB_URL='https://tnuzqrqxptxrfozzjjek.supabase.co';
@@ -460,7 +465,7 @@ let session=null;
 
 let state = { items:[], orders:[] };
 let loaded=false;
-let ui={q:'', type:'all', sort:'orders', chinaOnly:false, view:(()=>{try{return localStorage.getItem('pkg_view')||'md'}catch{return 'md'}})()};
+let ui={q:'', type:'all', status:'all', sort:'orders', chinaOnly:false, view:(()=>{try{return localStorage.getItem('pkg_view')||'md'}catch{return 'md'}})()};
 let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null;
 let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
@@ -598,7 +603,7 @@ async function setStatus(id,s){
 document.addEventListener('click',e=>{ if(!e.target.closest('#statusMenu')&&!e.target.closest('.badge-btn'))closeStatusMenu(); });
 
 /* ───────── 렌더 ───────── */
-function render(){renderSummary();renderTypeFilters();renderItems();renderKanban();if(detailItemId)renderDetail(detailItemId);}
+function render(){renderSummary();renderTypeFilters();renderStatusFilters();renderItems();renderKanban();if(detailItemId)renderDetail(detailItemId);}
 
 function renderSummary(){
   if(!loaded){
@@ -631,10 +636,17 @@ function renderTypeFilters(){
     `<button class="f-btn ${ui.type==='all'?'on':''}" onclick="ui.type='all';render()">전체 <span class="c">${counts.all}</span></button>`+
     TYPES.map(t=>`<button class="f-btn ${ui.type===t?'on':''}" onclick="ui.type='${t}';render()">${t} <span class="c">${counts[t]}</span></button>`).join('');
 }
+function renderStatusFilters(){
+  const cnt=v=>state.items.filter(i=>(i.status||'')===v).length;
+  $('statusFilters').innerHTML=
+    `<button class="f-btn ${ui.status==='all'?'on':''}" onclick="ui.status='all';render()">전체 <span class="c">${state.items.length}</span></button>`+
+    STATUSES.map(s=>`<button class="f-btn ${ui.status===s.v?'on':''}" onclick="ui.status='${s.v}';render()">${s.l} <span class="c">${cnt(s.v)}</span></button>`).join('');
+}
 
 function filteredItems(){
   let list=state.items.slice();
   if(ui.type!=='all')list=list.filter(i=>i.type===ui.type);
+  if(ui.status!=='all')list=list.filter(i=>(i.status||'')===ui.status);
   if(ui.chinaOnly)list=list.filter(i=>i.stock.china>0);
   const q=ui.q.trim().toLowerCase();
   if(q)list=list.filter(i=>

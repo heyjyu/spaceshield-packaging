@@ -33,6 +33,7 @@ create table if not exists public.pkg_items (
   status          text default '',            -- 수동 상태 뱃지 ('' 자동 / 시안 / 단종)
   photo           text default '',            -- 대표 사진 URL (= photos[0], 하위호환)
   photos          jsonb default '[]',         -- 사진 여러 장 URL 배열
+  links           jsonb default '[]',         -- 연관 카드(품목 id 배열, 양방향 표시)
   sheet           text default '',            -- 작업지시서 이미지 URL (Storage)
   created_at      timestamptz default now(),
   updated_at      timestamptz default now()

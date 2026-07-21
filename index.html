@@ -136,6 +136,27 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .status-menu button{display:block;width:100%;text-align:left;border:none;background:none;padding:8px 12px;font-size:13px;border-radius:7px;font-family:inherit;color:#333;white-space:nowrap}
 .status-menu button:hover{background:var(--paper)}
 .status-menu button.on{font-weight:700;background:var(--tag-soft)}
+/* 연관 카드 */
+.link-menu{width:250px}
+.link-menu #linkQ{width:100%;border:1px solid var(--line-strong);border-radius:7px;padding:7px 9px;font-size:12.5px;font-family:inherit;margin-bottom:4px}
+.link-menu #linkList{max-height:240px;overflow-y:auto}
+.link-menu .lm-code{color:var(--muted);font-family:'IBM Plex Mono';font-size:10.5px;margin-left:4px}
+.lm-empty{font-size:12px;color:var(--muted);padding:8px 10px}
+.link-box{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--paper)}
+.link-box h4{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:7px}
+.link-box h4 .c{font-family:'IBM Plex Mono';background:var(--card);border:1px solid var(--line);border-radius:9px;padding:0 7px;font-size:11px}
+.link-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.link-row:last-of-type{border-bottom:none}
+.lr-name{font-size:13px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lr-alias{color:#8a6400;font-weight:600}
+.lr-mid{color:#c0392b;font-family:'IBM Plex Mono';font-size:10.5px;font-weight:600}
+.lr-btns{display:flex;gap:5px;flex-shrink:0}
+.lr-go{border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.lr-go:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
+.lr-x{border:none;background:none;color:var(--muted);font-size:12px;padding:4px 5px;cursor:pointer}
+.lr-x:hover{color:var(--warn)}
+.link-add{margin-top:7px;width:100%;border:1.5px dashed var(--line-strong);background:none;border-radius:8px;padding:7px;font-size:12.5px;color:var(--muted);font-weight:600}
+.link-add:hover{border-color:var(--ink);color:var(--ink)}
 .ic-info{padding:11px 14px 13px}
 .ic-mid{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;letter-spacing:.06em;color:#c0392b}
 .ic-code{font-family:'IBM Plex Mono';font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
@@ -463,6 +484,7 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 </div>
 
 <div id="statusMenu" class="status-menu"></div>
+<div id="linkMenu" class="status-menu link-menu"></div>
 <div id="toast"></div>
 
 <script>
@@ -491,8 +513,8 @@ let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null
 let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', boxes:{china:r.box_china||0,forwarder:r.box_forwarder||0,korea:r.box_korea||0}, photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', box_china:(i.boxes&&i.boxes.china)||0, box_forwarder:(i.boxes&&i.boxes.forwarder)||0, box_korea:(i.boxes&&i.boxes.korea)||0, photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', boxes:{china:r.box_china||0,forwarder:r.box_forwarder||0,korea:r.box_korea||0}, photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), links:Array.isArray(r.links)?r.links:[], photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', box_china:(i.boxes&&i.boxes.china)||0, box_forwarder:(i.boxes&&i.boxes.forwarder)||0, box_korea:(i.boxes&&i.boxes.korea)||0, photos:i.photos||[], links:i.links||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -637,6 +659,54 @@ async function setStatus(id,s){
   catch(e){ toast('상태 저장 실패: '+e.message); loadAll(); }
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('#statusMenu')&&!e.target.closest('.badge-btn'))closeStatusMenu(); });
+
+/* ───────── 연관 카드 (거미줄) ───────── */
+function relatedOf(it){   // 한쪽만 등록해도 양방향 표시
+  const mine=it.links||[];
+  return state.items.filter(x=>x.id!==it.id && (mine.includes(x.id) || (x.links||[]).includes(it.id)));
+}
+async function dbUpdateLinks(it){const {error}=await sb.from('pkg_items').update({links:it.links||[]}).eq('id',it.id);if(error)throw error;}
+function openLinkMenu(id,ev){
+  ev.stopPropagation();
+  if(!requireAuth())return;
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  const rel=relatedOf(it).map(x=>x.id);
+  const m=$('linkMenu');
+  const opts=state.items.filter(x=>x.id!==id && !rel.includes(x.id))
+    .sort((a,b)=>a.nameKo.localeCompare(b.nameKo,'ko'));
+  m.innerHTML=`<input id="linkQ" placeholder="품목 검색…" oninput="filterLinkMenu(this.value)">
+    <div id="linkList">${opts.map(x=>`<button data-name="${esc((x.nameKo+' '+(x.code||'')+' '+(x.alias||'')).toLowerCase())}" onclick="addLink(${id},${x.id})">${esc(x.nameKo)} <span class="lm-code">${mid(x)}</span></button>`).join('')||'<div class="lm-empty">연결할 품목이 없습니다</div>'}</div>`;
+  m.classList.add('on');
+  const r=ev.currentTarget.getBoundingClientRect(), mw=250, mh=Math.min(m.offsetHeight||320,320);
+  let left=Math.min(r.left, window.innerWidth-mw-8), top=r.bottom+4;
+  if(top+mh>window.innerHeight-8) top=Math.max(8, r.top-mh-4);
+  m.style.left=Math.max(8,left)+'px'; m.style.top=top+'px';
+  setTimeout(()=>{const q=$('linkQ');if(q)q.focus();},40);
+}
+function filterLinkMenu(v){
+  const q=v.trim().toLowerCase();
+  document.querySelectorAll('#linkList button').forEach(b=>{b.style.display=(!q||b.dataset.name.includes(q))?'':'none';});
+}
+function closeLinkMenu(){$('linkMenu').classList.remove('on');}
+async function addLink(id,targetId){
+  closeLinkMenu();
+  const it=state.items.find(x=>x.id===id); if(!it)return;
+  it.links=[...(it.links||[]),targetId];
+  try{ await dbUpdateLinks(it); render(); toast('연관 카드가 연결되었습니다'); }
+  catch(e){ toast('연결 실패: '+e.message); loadAll(); }
+}
+async function removeLink(id,targetId){
+  if(!requireAuth())return;
+  const a=state.items.find(x=>x.id===id), b=state.items.find(x=>x.id===targetId);
+  if(!a||!b)return;
+  if(!confirm(`'${b.nameKo}' 연관 연결을 해제할까요?`))return;
+  try{
+    if((a.links||[]).includes(targetId)){ a.links=a.links.filter(x=>x!==targetId); await dbUpdateLinks(a); }
+    if((b.links||[]).includes(id)){ b.links=b.links.filter(x=>x!==id); await dbUpdateLinks(b); }
+    render(); toast('연관 연결이 해제되었습니다');
+  }catch(e){ toast('해제 실패: '+e.message); loadAll(); }
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#linkMenu')&&!e.target.closest('.link-add'))closeLinkMenu(); });
 
 /* ───────── 렌더 ───────── */
 function render(){renderSummary();renderTypeFilters();renderStatusFilters();renderItems();renderKanban();if(detailItemId)renderDetail(detailItemId);}
@@ -795,6 +865,20 @@ function renderDetail(id){
   const boxOf=f=>(i.boxes&&i.boxes[f])||0;
   const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div>${(canEdit||boxOf(f))?`<div class="box-cnt${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this,'box')" title="박스 수 수정"`:''}>BOX : ${fmt(boxOf(f))}</div>`:''}<div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
   const ordHtml=orderHistoryHtml(i);
+  const rel=relatedOf(i);
+  const linkHtml=(rel.length||canEdit)?`
+    <div class="link-box">
+      <h4>🕸 연관 카드 ${rel.length?`<span class="c">${rel.length}</span>`:''}</h4>
+      ${rel.map(x=>`
+        <div class="link-row">
+          <span class="lr-name">${esc(x.nameKo)}${x.alias?` <b class="lr-alias">'${esc(x.alias)}'</b>`:''} <span class="lr-mid">${mid(x)}</span></span>
+          <span class="lr-btns">
+            <button class="lr-go" onclick="openDetail(${x.id})">카드 이동 →</button>
+            ${canEdit?`<button class="lr-x" title="연결 해제" onclick="removeLink(${i.id},${x.id})">✕</button>`:''}
+          </span>
+        </div>`).join('')||'<div class="lm-empty">연결된 카드가 없습니다</div>'}
+      ${canEdit?`<button class="link-add" onclick="openLinkMenu(${i.id},event)">＋ 연관 카드 추가</button>`:''}
+    </div>`:'';
   const dph=i.photos||[];
   const dIdx=Math.min(detailImgIdx, Math.max(0,dph.length-1));
   const photo=dph.length
@@ -851,6 +935,7 @@ function renderDetail(id){
         <button onclick="pickPhoto(${i.id},'sheet')">${i.sheet?'지시서 이미지 변경':'지시서 이미지 등록'}</button>
         ${i.sheet?`<span class="sep">·</span><button onclick="zoomSheet(${i.id})">지시서 크게 보기</button>`:''}
       </div>
+      ${linkHtml}
       ${ordHtml}
       <div class="dt-actions">
         <button class="act gold" onclick="openOrderModal(${i.id})">발주 요청</button>

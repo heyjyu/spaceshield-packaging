@@ -14,6 +14,7 @@ alter table public.pkg_items add column if not exists photos   jsonb default '[]
 alter table public.pkg_items add column if not exists box_china     int default 0;  -- 중국창고 박스 수(수동)
 alter table public.pkg_items add column if not exists box_forwarder int default 0;  -- 포워딩 박스 수
 alter table public.pkg_items add column if not exists box_korea     int default 0;  -- 국내 박스 수
+alter table public.pkg_items add column if not exists links    jsonb default '[]'; -- 연관 카드(품목 id 배열, 양방향 표시)
 
 -- 실시간 동기화 (다른 사용자의 변경 자동 반영)
 do $$

@@ -201,8 +201,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .asset-tile .lb{font-weight:700;font-size:13.5px;color:var(--ink)}
 .asset-tile .cap{font-size:10.5px;color:var(--muted)}
 .asset-tile.set{background:var(--tag-soft);border-color:#ecd9a0}
-.asset-tile.empty{opacity:.55}
-.asset-tile.empty:hover{opacity:1}
+.asset-tile.off{opacity:.55}
+.asset-tile.off:hover{opacity:1}
 .asset-edit{text-align:center;margin-top:7px}
 .asset-edit button{background:none;border:none;color:var(--muted);font-size:11.5px;text-decoration:underline;cursor:pointer;font-family:inherit}
 .asset-edit button:hover{color:var(--ink)}
@@ -765,19 +765,19 @@ function renderDetail(id){
         ${i.memo?`<span style="grid-column:1/3">메모: ${esc(i.memo)}</span>`:''}
       </div>
       <div class="asset-row">
-        <button class="asset-tile ${i.buyUrl?'set':'empty'}" onclick="openBuyUrl(${i.id})">
+        <button class="asset-tile ${i.buyUrl?'set':'off'}" onclick="openBuyUrl(${i.id})">
           <div class="ic">🔗</div><div class="lb">구매링크</div>
           <div class="cap">${i.buyUrl?'클릭해 열기':'미등록'}</div>
         </button>
-        <button class="asset-tile ${i.sheet?'set':'empty'}" onclick="${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">
+        <button class="asset-tile ${i.sheet?'set':'off'}" onclick="${i.sheet?`copySheetImage(${i.id})`:`pickPhoto(${i.id},'sheet')`}">
           <div class="ic">📄</div><div class="lb">작업지시서</div>
           <div class="cap">${i.sheet?'이미지 복사':'등록 필요'}</div>
         </button>
-        <button class="asset-tile ${i.nasPath?'set':'empty'}" onclick="copyNasPath(${i.id})">
+        <button class="asset-tile ${i.nasPath?'set':'off'}" onclick="copyNasPath(${i.id})">
           <div class="ic">📁</div><div class="lb">NAS</div>
           <div class="cap">${i.nasPath?'서버 경로 복사':'미등록'}</div>
         </button>
-        <button class="asset-tile ${i.flowUrl?'set':'empty'}" onclick="copyFlowUrl(${i.id})">
+        <button class="asset-tile ${i.flowUrl?'set':'off'}" onclick="copyFlowUrl(${i.id})">
           <div class="ic">🟣</div><div class="lb">FLOW</div>
           <div class="cap">${i.flowUrl?'기획서 URL 복사':'미등록'}</div>
         </button>

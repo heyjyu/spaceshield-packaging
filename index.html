@@ -146,6 +146,8 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
 .stk-split div+div{border-left:1px solid var(--line)}
 .stk-split div.hot{background:var(--tag-soft)}
 .box-cnt{display:block;font-family:'IBM Plex Mono';font-size:9.5px;font-weight:600;color:#c0392b;letter-spacing:.02em;margin:1px 0 0}
+.box-cnt.editable{cursor:text;text-decoration:underline dotted #e0a9a1;text-underline-offset:2px}
+.box-cnt.editable:hover{color:#8a2a1e}
 .dt-stocks .box-cnt{font-size:10.5px;margin:2px 0 1px}
 /* 카드 액션 버튼 */
 .card-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;align-items:stretch}
@@ -382,9 +384,11 @@ aside{width:210px;flex-shrink:0;position:sticky;top:16px}
       <div class="f"><label>포워딩 재고</label><input id="i_sFwd" type="number" value="0"></div>
       <div class="f"><label>국내 재고</label><input id="i_sKr" type="number" value="0"></div>
     </div>
-    <div class="f2">
-      <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
-      <div class="f"><label>박스당 입수량 (BOX 수 자동계산 · 0=미표시)</label><input id="i_boxqty" type="number" value="0" placeholder="예: 4500"></div>
+    <div class="f"><label>안전재고</label><input id="i_safety" type="number" value="0"></div>
+    <div class="f3">
+      <div class="f"><label>중국 박스수 (러프해도 OK)</label><input id="i_bChina" type="number" value="0"></div>
+      <div class="f"><label>포워딩 박스수</label><input id="i_bFwd" type="number" value="0"></div>
+      <div class="f"><label>국내 박스수</label><input id="i_bKr" type="number" value="0"></div>
     </div>
     <div class="f"><label>구매링크 URL</label><input id="i_buy" placeholder="https://... (재주문/구매 페이지)"></div>
     <div class="f"><label>NAS 전체 서버 경로</label><input id="i_nas" placeholder="\\NAS\SpaceShield\G STK\먼지제거스티커\"></div>
@@ -459,8 +463,8 @@ let currentView='items', editingItemId=null, detailItemId=null, photoTarget=null
 let cardImgIdx={}, detailImgIdx=0;   // 사진 넘기기 인덱스(비영속)
 
 /* DB(snake) ↔ 화면(camel) 매핑 */
-function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', boxQty:r.box_qty||0, photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
-function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', box_qty:i.boxQty||0, photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
+function rowToItem(r){return {id:r.id, code:r.code, nameKo:r.name_ko, alias:r.alias||'', type:r.type||'기타', cat:r.cat||'', nameEn:r.name_en||'', nameCn:r.name_cn||'', spec:r.spec||'', price:Number(r.price)||0, moq:r.moq||0, lead:r.lead||14, safety:r.safety||0, stock:{china:r.stock_china||0, forwarder:r.stock_forwarder||0, korea:r.stock_korea||0}, memo:r.memo||'', nasPath:r.nas_path||'', flowUrl:r.flow_url||'', buyUrl:r.buy_url||'', status:r.status||'', boxes:{china:r.box_china||0,forwarder:r.box_forwarder||0,korea:r.box_korea||0}, photos:(Array.isArray(r.photos)&&r.photos.length)?r.photos:(r.photo?[r.photo]:[]), photo:r.photo||null, sheet:r.sheet||null};}
+function itemToRow(i){return {code:i.code, name_ko:i.nameKo, alias:i.alias||'', type:i.type||'기타', cat:i.cat||'', name_en:i.nameEn||'', name_cn:i.nameCn||'', spec:i.spec||'', price:i.price||0, moq:i.moq||0, lead:i.lead||14, safety:i.safety||0, stock_china:i.stock.china||0, stock_forwarder:i.stock.forwarder||0, stock_korea:i.stock.korea||0, memo:i.memo||'', nas_path:i.nasPath||'', flow_url:i.flowUrl||'', buy_url:i.buyUrl||'', status:i.status||'', box_china:(i.boxes&&i.boxes.china)||0, box_forwarder:(i.boxes&&i.boxes.forwarder)||0, box_korea:(i.boxes&&i.boxes.korea)||0, photos:i.photos||[], photo:(i.photos&&i.photos[0])||i.photo||'', sheet:i.sheet||''};}
 function rowToOrder(r){return {id:r.id, itemId:r.item_id, stage:r.stage, qty:r.qty||0, price:Number(r.price)||0, by:r.requested_by||'', memo:r.memo||'', orderDate:r.order_date||'', eta:r.eta||'', created:r.created||''};}
 function orderToRow(o){return {item_id:o.itemId, stage:o.stage, qty:o.qty||0, price:o.price||0, requested_by:o.by||'', memo:o.memo||'', order_date:o.orderDate||'', eta:o.eta||'', created:o.created||''};}
 
@@ -500,6 +504,7 @@ function initRealtime(){
 async function dbInsertItem(i){const {data,error}=await sb.from('pkg_items').insert(itemToRow(i)).select('id').single();if(error)throw error;return data.id;}
 async function dbUpdateItem(i){const {error}=await sb.from('pkg_items').update(itemToRow(i)).eq('id',i.id);if(error)throw error;}
 async function dbUpdateItemStock(i){const {error}=await sb.from('pkg_items').update({stock_china:i.stock.china,stock_forwarder:i.stock.forwarder,stock_korea:i.stock.korea}).eq('id',i.id);if(error)throw error;}
+async function dbUpdateItemBox(i){const {error}=await sb.from('pkg_items').update({box_china:i.boxes.china,box_forwarder:i.boxes.forwarder,box_korea:i.boxes.korea}).eq('id',i.id);if(error)throw error;}
 async function dbInsertOrder(o){const {data,error}=await sb.from('pkg_orders').insert(orderToRow(o)).select('id').single();if(error)throw error;o.id=data.id;}
 async function dbUpdateOrder(o){const {error}=await sb.from('pkg_orders').update(orderToRow(o)).eq('id',o.id);if(error)throw error;}
 async function dbDeleteOrder(id){const {error}=await sb.from('pkg_orders').delete().eq('id',id);if(error)throw error;}
@@ -652,7 +657,13 @@ function renderItems(){
   const se=(i,f)=>authed
     ? `<b class="editable" onclick="event.stopPropagation();beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정">${fmt(i.stock[f])}</b>`
     : `<b>${fmt(i.stock[f])}</b>`;
-  const boxLine=(i,f)=> i.boxQty>0 ? `<span class="box-cnt">BOX : ${fmt(Math.round(i.stock[f]/i.boxQty))}</span>` : '';
+  const boxLine=(i,f)=>{
+    const b=(i.boxes&&i.boxes[f])||0;
+    if(!authed && !b) return '';
+    return authed
+      ? `<span class="box-cnt editable" onclick="event.stopPropagation();beginStockEdit(${i.id},'${f}',this,'box')" title="박스 수 수정">BOX : ${fmt(b)}</span>`
+      : `<span class="box-cnt">BOX : ${fmt(b)}</span>`;
+  };
   g.innerHTML=list.map(i=>{
     const tot=totalStock(i);
     const oc=orderCount(i.id);
@@ -728,7 +739,8 @@ function renderDetail(id){
   const i=state.items.find(x=>x.id===id); if(!i){closeModal('detailOverlay');return;}
   const tot=totalStock(i);
   const canEdit=isAuthed();
-  const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div>${i.boxQty>0?`<div class="box-cnt">BOX : ${fmt(Math.round(i.stock[f]/i.boxQty))}</div>`:''}<div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
+  const boxOf=f=>(i.boxes&&i.boxes[f])||0;
+  const stkCell=(f,l,hot)=>`<div class="stk ${hot?'hot':''}"><div class="l">${l}</div>${(canEdit||boxOf(f))?`<div class="box-cnt${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this,'box')" title="박스 수 수정"`:''}>BOX : ${fmt(boxOf(f))}</div>`:''}<div class="n${canEdit?' editable':''}" ${canEdit?`onclick="beginStockEdit(${i.id},'${f}',this)" title="클릭해서 재고 수정"`:''}>${fmt(i.stock[f])}</div></div>`;
   const ordHtml=orderHistoryHtml(i);
   const dph=i.photos||[];
   const dIdx=Math.min(detailImgIdx, Math.max(0,dph.length-1));
@@ -1025,12 +1037,15 @@ function openBuyUrl(itemId){   // 링크가 있으면 새 탭으로 바로 열�
 /* ───────── 재고 인라인 수정 (상세카드, 로그인 시) ───────── */
 let stockEditing=false;
 const STK_LABEL={china:'중국창고',forwarder:'포워딩',korea:'국내'};
-function beginStockEdit(id,field,el){
+function beginStockEdit(id,field,el,kind){
+  kind=kind||'stock';
   if(!isAuthed()){requireAuth();return;}
   if(stockEditing)return;
   const it=state.items.find(x=>x.id===id); if(!it)return;
+  if(kind==='box'&&!it.boxes)it.boxes={china:0,forwarder:0,korea:0};
   stockEditing=true;
-  const cur=it.stock[field];
+  const src=kind==='box'?it.boxes:it.stock;
+  const cur=src[field]||0;
   el.innerHTML=`<input class="stk-edit" type="number" min="0" value="${cur}">`;
   const inp=el.firstChild; inp.focus(); inp.select();
   let done=false;
@@ -1040,9 +1055,11 @@ function beginStockEdit(id,field,el){
     if(!save){render();flush();return;}
     const v=Math.max(0,Math.round(Number(inp.value)||0));
     if(v===cur){render();flush();return;}
-    it.stock[field]=v; render();
-    try{ await dbUpdateItemStock(it); toast(`${it.code} ${STK_LABEL[field]} 재고 ${fmt(v)}개로 수정`); }
-    catch(e){ toast('저장 실패: '+e.message); loadAll(); }
+    src[field]=v; render();
+    try{
+      if(kind==='box') await dbUpdateItemBox(it); else await dbUpdateItemStock(it);
+      toast(`${it.code} ${STK_LABEL[field]} ${kind==='box'?fmt(v)+'박스':fmt(v)+'개'}로 수정`);
+    }catch(e){ toast('저장 실패: '+e.message); loadAll(); }
   };
   inp.onblur=()=>finish(true);
   inp.onclick=(e)=>e.stopPropagation();
@@ -1065,7 +1082,8 @@ function openItemModal(id){
   $('i_spec').value=i?i.spec:''; $('i_price').value=i?i.price:'';
   $('i_moq').value=i?i.moq:''; $('i_lead').value=i?i.lead:'';
   $('i_sChina').value=i?i.stock.china:0; $('i_sFwd').value=i?i.stock.forwarder:0; $('i_sKr').value=i?i.stock.korea:0;
-  $('i_safety').value=i?i.safety:0; $('i_boxqty').value=i?i.boxQty:0; $('i_memo').value=i?i.memo:'';
+  $('i_safety').value=i?i.safety:0; $('i_memo').value=i?i.memo:'';
+  $('i_bChina').value=i&&i.boxes?i.boxes.china:0; $('i_bFwd').value=i&&i.boxes?i.boxes.forwarder:0; $('i_bKr').value=i&&i.boxes?i.boxes.korea:0;
   $('i_nas').value=i?i.nasPath:''; $('i_flow').value=i?i.flowUrl:''; $('i_buy').value=i?i.buyUrl:''; $('i_status').value=i?i.status:'';
   renderItemPhotos(id||null);
   closeModal('detailOverlay');
@@ -1079,7 +1097,8 @@ async function saveItem(){
     nameEn:$('i_nameEn').value.trim(), nameCn:$('i_nameCn').value.trim(),
     spec:$('i_spec').value.trim(), price:Number($('i_price').value)||0,
     moq:Number($('i_moq').value)||0, lead:Number($('i_lead').value)||14,
-    safety:Number($('i_safety').value)||0, boxQty:Number($('i_boxqty').value)||0, memo:$('i_memo').value.trim(),
+    safety:Number($('i_safety').value)||0, memo:$('i_memo').value.trim(),
+    boxes:{china:Number($('i_bChina').value)||0, forwarder:Number($('i_bFwd').value)||0, korea:Number($('i_bKr').value)||0},
     nasPath:$('i_nas').value.trim(), flowUrl:$('i_flow').value.trim(), buyUrl:$('i_buy').value.trim(), status:$('i_status').value,
     stock:{china:Number($('i_sChina').value)||0, forwarder:Number($('i_sFwd').value)||0, korea:Number($('i_sKr').value)||0}
   };
@@ -1147,7 +1166,7 @@ async function saveOrder(){
 function closeModal(id){$(id).classList.remove('on');}
 
 /* ── 폼 미저장 경고 ── */
-const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_status','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_boxqty','i_memo','i_buy','i_nas','i_flow'];
+const ITEM_FIELDS=['i_code','i_nameKo','i_type','i_status','i_cat','i_alias','i_nameEn','i_nameCn','i_spec','i_price','i_moq','i_lead','i_sChina','i_sFwd','i_sKr','i_safety','i_bChina','i_bFwd','i_bKr','i_memo','i_buy','i_nas','i_flow'];
 const ORDER_FIELDS=['o_item','o_qty','o_price','o_by','o_memo'];
 let formSnap={};
 function snapForm(fields){return fields.map(id=>$(id).value).join('');}

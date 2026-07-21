@@ -20,7 +20,9 @@ create table if not exists public.pkg_items (
   moq             int    default 0,
   lead            int    default 14,          -- 리드타임(일)
   safety          int    default 0,           -- 안전재고
-  box_qty         int    default 0,           -- 박스당 입수량 (BOX 수 자동계산용, 0=미표시)
+  box_china       int    default 0,           -- 중국창고 박스 수 (수동, 러프)
+  box_forwarder   int    default 0,           -- 포워딩 박스 수
+  box_korea       int    default 0,           -- 국내 박스 수
   stock_china     int    default 0,           -- 중국창고 재고
   stock_forwarder int    default 0,           -- 포워딩 재고
   stock_korea     int    default 0,           -- 국내 재고
